@@ -1,0 +1,104 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>BoekSolutions.SheetSetEditor</AssemblyName>
+    <RootNamespace>BoekSolutions.SheetSetEditor</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+    <Version>1.0.0</Version>
+    <!-- Ensure NuGet runtime dependencies (log4net) are copied to output directory -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <!-- AutoCAD managed assemblies – provided by AutoCAD at runtime, not copied to output -->
+  <ItemGroup>
+    <Reference Include="accoremgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2027\accoremgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="acdbmgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2027\acdbmgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="acmgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2027\acmgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="log4net" Version="3.3.1" />
+  </ItemGroup>
+
+  <!-- Exclude stale .NET Framework 4.8 App.config (generates wrong dll.config for AutoCAD) -->
+  <ItemGroup>
+    <None Remove="App.config" />
+  </ItemGroup>
+
+  <!-- Exclude sibling projects, build artifacts, and old COM-generated files -->
+  <ItemGroup>
+    <Compile Remove="App\**" />
+    <Compile Remove="Core\**" />
+    <Compile Remove="Config\Acad\**" />
+    <None Remove="App\**" />
+    <None Remove="Core\**" />
+  </ItemGroup>
+
+  <!-- Dead code: old WPF UI replaced by standalone SheetSetEditor.App -->
+  <!-- COM helpers no longer needed: plugin only launches the App -->
+  <ItemGroup>
+    <!-- .NET Framework 4.8 auto-generated files, not compatible with .NET 10 -->
+    <Compile Remove="Properties\Settings.Designer.cs" />
+    <Compile Remove="Properties\Resources.Designer.cs" />
+    <Compile Remove="UI\**" />
+    <Compile Remove="ViewModels\**" />
+    <Compile Remove="Models\**" />
+    <Compile Remove="Wrappers\**" />
+    <Compile Remove="Events\**" />
+    <Compile Remove="Helpers\ComHelper.cs" />
+    <Compile Remove="Helpers\ComScope.cs" />
+    <Compile Remove="Helpers\DatabaseHelper.cs" />
+    <Compile Remove="Helpers\PropertyBagHelper.cs" />
+    <Compile Remove="Helpers\RelayCommand.cs" />
+    <Compile Remove="Helpers\RecentFilesHelper.cs" />
+    <Compile Remove="Helpers\SaveHelper.cs" />
+    <Compile Remove="Helpers\SheetDisplayHelper.cs" />
+    <Compile Remove="Helpers\SheetEditorHelper.cs" />
+    <Compile Remove="Helpers\SheetHelper.cs" />
+    <Compile Remove="Helpers\SheetSetEditViewModel.cs" />
+    <Compile Remove="Helpers\SheetSetMgr.cs" />
+    <Compile Remove="Helpers\SheetTreeHelper.cs" />
+    <Compile Remove="Helpers\TreeBuilder.cs" />
+    <Compile Remove="Helpers\TreeViewSelectionHelper.cs" />
+    <Compile Remove="Helpers\VisualTreeHelperExtensions.cs" />
+    <None Remove="UI\**" />
+    <Page Remove="UI\**" />
+  </ItemGroup>
+
+  <!-- log4net config must land next to the DLL in the bundle -->
+  <ItemGroup>
+    <None Include="Config\log4net.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <Target Name="CopyPluginToBundle" AfterTargets="Build">
+    <PropertyGroup>
+      <BundleDest>$(APPDATA)\Autodesk\ApplicationPlugins\BoekSolutions.SheetSetEditor.bundle\</BundleDest>
+    </PropertyGroup>
+    <MakeDir Directories="$(BundleDest)Contents\Windows\x64\" />
+    <!-- Remove stale legacy files from previous builds -->
+    <Exec Command="if exist &quot;$(BundleDest)Contents\Windows\x64\Interop.ACSMCOMPONENTS24Lib.dll&quot; del /Q &quot;$(BundleDest)Contents\Windows\x64\Interop.ACSMCOMPONENTS24Lib.dll&quot;" />
+    <Exec Command="if exist &quot;$(BundleDest)Contents\Windows\x64\Newtonsoft.Json.dll&quot; del /Q &quot;$(BundleDest)Contents\Windows\x64\Newtonsoft.Json.dll&quot;" />
+    <!-- Copy plugin DLL + dependencies (log4net.dll, Config\) -->
+    <Exec Command="xcopy /Y /F /E &quot;$(TargetDir)*&quot; &quot;$(BundleDest)Contents\Windows\x64\&quot;" />
+    <!-- Remove stale .NET Framework dll.config generated from App.config -->
+    <Exec Command="if exist &quot;$(BundleDest)Contents\Windows\x64\BoekSolutions.SheetSetEditor.dll.config&quot; del /Q &quot;$(BundleDest)Contents\Windows\x64\BoekSolutions.SheetSetEditor.dll.config&quot;" />
+    <!-- Copy bundle metadata (PackageContents.xml, icon) -->
+    <Exec Command="xcopy /Y /F /E &quot;$(ProjectDir)bundle\*&quot; &quot;$(BundleDest)&quot;" />
+  </Target>
+
+</Project>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage
+  SchemaVersion="1.0"
+  AutodeskProduct="AutoCAD"
+  Name="BoekSolutions Sheet Set Editor"
+  Description="Plugin voor bewerken van Sheet Sets in AutoCAD"
+  AppVersion="1.0.0"
+  ProductCode="{B6D62A1E-4B4C-4B99-A000-B0EC5010ED17}"
+  Author="BoekSolutions"
+  Company="BoekSolutions"
+  Icon="./Contents/Resources/Boek.png"
+>
+  <Components>
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R25.0" />
+    <ComponentEntry
+      AppName="BoekSolutions Sheet Set Editor"
+      ModuleName="./Contents/Windows/x64/BoekSolutions.SheetSetEditor.dll"
+      LoadOnAutoCADStartup="true"
+      LoadOnCommandInvocation="false"
+      AppType=".NET">
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>

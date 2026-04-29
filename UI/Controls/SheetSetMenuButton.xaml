@@ -1,0 +1,17 @@
+﻿<UserControl x:Class="BoekSolutions.SheetSetEditor.UI.Controls.SheetSetMenuButton"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:BoekSolutions.SheetSetEditor.UI.Controls"
+             Height="32">
+    <Grid x:Name="LayoutRoot">
+        <Button x:Name="MainButton" Height="32" HorizontalAlignment="Stretch" VerticalAlignment="Top"
+                ToolTipService.ShowDuration="60000"
+                Padding="10,0" HorizontalContentAlignment="Left" VerticalContentAlignment="Center"
+                Click="MainButton_Click">
+            <DockPanel>
+                <TextBlock x:Name="ButtonLabel" Text="Open..." DockPanel.Dock="Left" VerticalAlignment="Center" />
+                <TextBlock Text="▼" DockPanel.Dock="Right" Margin="5,0,0,0" VerticalAlignment="Center" />
+            </DockPanel>
+        </Button>
+    </Grid>
+</UserControl>

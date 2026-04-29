@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\SheetSet.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="..\Resources\Boek.png">
+      <Link>Resources/Boek.png</Link>
+    </Resource>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <BundleTarget>$(APPDATA)\Autodesk\ApplicationPlugins\BoekSolutions.SheetSetEditor.bundle\Contents\Windows\x64\</BundleTarget>
+  </PropertyGroup>
+
+  <Target Name="CopyAppToBundle" AfterTargets="Build">
+    <MakeDir Directories="$(BundleTarget)" />
+    <Exec Command="xcopy /Y /F /E &quot;$(TargetDir)*&quot; &quot;$(BundleTarget)&quot;" />
+  </Target>
+
+</Project>

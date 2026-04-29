@@ -1,0 +1,115 @@
+﻿<UserControl x:Class="BoekSolutions.SheetSetEditor.UI.Controls.SheetPropertyGrid"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Hoofdvelden -->
+        <GroupBox Grid.Row="0"
+                  Header="Hoofdvelden"
+                  BorderBrush="#2196F3"
+                  BorderThickness="1.5"
+                  Margin="12 0 12 12"
+                  Background="White"
+                  Padding="8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="140"/>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="Bladnummer:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
+                <TextBox Text="{Binding NewPageNumber, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" Grid.Column="2" Height="22"/>
+                <TextBlock Text="Titel:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
+                <TextBox Text="{Binding NewTitle, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="2" Height="22"/>
+                <TextBlock Text="Omschrijving:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center"/>
+                <TextBox Text="{Binding NewDescription, UpdateSourceTrigger=PropertyChanged}" Grid.Row="2" Grid.Column="2" Height="22"/>
+                <GridSplitter Grid.Column="1" Grid.RowSpan="3"
+                              Width="6"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Stretch"
+                              Background="#B0B0B0"/>
+            </Grid>
+        </GroupBox>
+
+        <!-- Overige standaardvelden -->
+        <Expander Grid.Row="1"
+                  Header="Overige standaardvelden"
+                  Background="White"
+                  Margin="12 0 12 12"
+                  Padding="8"
+                  BorderBrush="#90CAF9"
+                  BorderThickness="1"
+                  IsExpanded="False">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="140"/>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="Revisienummer:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
+                <TextBox Text="{Binding NewRevisionNumber, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" Grid.Column="2" Height="22"/>
+                <TextBlock Text="Revisiedatum:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"/>
+                <TextBox Text="{Binding NewRevisionDate, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="2" Height="22"/>
+                <TextBlock Text="Uitgifte doel:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center"/>
+                <TextBox Text="{Binding NewIssuePurpose, UpdateSourceTrigger=PropertyChanged}" Grid.Row="2" Grid.Column="2" Height="22"/>
+                <TextBlock Text="Categorie:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center"/>
+                <TextBox Text="{Binding NewCategory, UpdateSourceTrigger=PropertyChanged}" Grid.Row="3" Grid.Column="2" Height="22"/>
+                <TextBlock Text="Niet plotten:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center"/>
+                <CheckBox IsChecked="{Binding NewDoNotPlot, UpdateSourceTrigger=PropertyChanged}" Grid.Row="4" Grid.Column="2" VerticalAlignment="Center"/>
+                <GridSplitter Grid.Column="1" Grid.RowSpan="5"
+                              Width="6"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Stretch"
+                              Background="#B0B0B0"/>
+            </Grid>
+        </Expander>
+
+        <!-- Custom Properties -->
+        <Expander Grid.Row="2"
+                  Header="Custom properties"
+                  Background="White"
+                  Padding="8"
+                  Margin="12 0 12 12"
+                  BorderBrush="#BDBDBD"
+                  BorderThickness="1"
+                  IsExpanded="True">
+            <Grid>
+                <ListView x:Name="CustomPropertiesList"
+                          ItemsSource="{Binding CustomProperties}"
+                          BorderThickness="0"
+                          VerticalAlignment="Stretch"
+                          HorizontalAlignment="Stretch">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Property" Width="200" DisplayMemberBinding="{Binding PropertyName}" />
+                            <GridViewColumn Header="Waarde" Width="260">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding PropertyValue, UpdateSourceTrigger=PropertyChanged}" Height="22"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </Grid>
+        </Expander>
+    </Grid>
+</UserControl>

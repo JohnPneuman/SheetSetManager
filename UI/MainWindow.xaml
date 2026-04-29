@@ -1,0 +1,90 @@
+﻿<Window x:Class="BoekSolutions.SheetSetEditor.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:BoekSolutions.SheetSetEditor.UI.Controls"
+        Title="Sheet Set Viewer" Height="600" Width="800"
+        Closing="MainWindow_Closing">
+
+    <Grid>
+
+        <!-- DockPanel met header, controls en hoofdinhoud -->
+        <DockPanel>
+
+            <!-- Sheet Set menu -->
+            <controls:SheetSetMenuButton x:Name="SheetSetMenu"
+                                         DockPanel.Dock="Top"
+                                         SheetSetOpenRequested="OnSheetSetOpen"
+                                         SheetSetCloseRequested="OnSheetSetClose" />
+
+            <!-- AutoNumber Control -->
+            <controls:AutoNumberControl x:Name="AutoNumberControl"
+                                        DockPanel.Dock="Top" />
+
+            <!-- Hoofdinhoud -->
+            <Grid DockPanel.Dock="Top" Margin="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="3*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- TreeView -->
+                <controls:SheetTreeControl x:Name="SheetTreeControl"
+                                           Grid.Column="0"
+                                           Margin="0,0,10,0"/>
+
+                <!-- PropertyGrid + Knoppen + Logo -->
+                <Grid Grid.Column="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- PropertyGrid -->
+                    <controls:SheetPropertyGrid x:Name="SheetPropertyGrid" Grid.Row="0" />
+
+                    <!-- Onderste regel: logo links, knoppen rechts -->
+                    <Grid Grid.Row="1" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <!-- Logo -->
+                            <ColumnDefinition Width="*" />
+                            <!-- Spacer -->
+                            <ColumnDefinition Width="Auto"/>
+                            <!-- Knoppen -->
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Logo -->
+                        <StackPanel Grid.Column="0"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <Image Source="pack://application:,,,/BoekSolutions.SheetSetEditor;component/Resources/Boek.png"
+                                   Width="40"
+                                   Height="40"
+                                   Margin="0,0,5,0"/>
+                            <TextBlock Text="Boek Solutions"
+                                       VerticalAlignment="Bottom"
+                                       FontSize="10"
+                                       Foreground="Gray"/>
+                        </StackPanel>
+
+                        <!-- Knoppen -->
+                        <StackPanel Grid.Column="2"
+                                    Orientation="Horizontal"
+                                    HorizontalAlignment="Right">
+                            <Button Content="Apply"
+                                    Width="75"
+                                    Height="25"
+                                    Margin="5,0"
+                                    Click="OnApplyClicked" />
+                            <Button Content="Save"
+                                    Width="75"
+                                    Height="25"
+                                    Margin="5,0"
+                                    Click="OnSaveClicked" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </DockPanel>
+    </Grid>
+</Window>
