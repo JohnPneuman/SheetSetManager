@@ -16,6 +16,7 @@ namespace BoekSolutions.SheetSetEditor.UI
     {
         private IAcSmDatabase _database;
         private string _lastOpenedPath;
+        private bool _weLockedDatabase;
 
         public MainWindow()
         {
@@ -102,16 +103,25 @@ namespace BoekSolutions.SheetSetEditor.UI
                 return;
             }
 
-            Log.Info("[SSM] >>> PRE-SAVE DEBUG START <<<");
-            Log.Info("[SSM] >>> PRE-SAVE DEBUG END <<<");
-
-            SaveHelper.SaveDatabase(_database);
-            DatabaseHelper.UnlockDb(_database);
-            _database = null;
-            SheetTreeControl.ClearTree();
-            OnSheetSetOpen(_lastOpenedPath);
-
-            SheetPropertyGrid.Clear();
+            if (_weLockedDatabase)
+            {
+                // Plugin heeft zelf gelockt → unlock+save cyclus (normaal geval)
+                Log.Info("[SSM] Save + unlock (plugin had lock).");
+                SaveHelper.SaveDatabase(_database);
+                DatabaseHelper.UnlockDb(_database);
+                _database = null;
+                _weLockedDatabase = false;
+                SheetTreeControl.ClearTree();
+                OnSheetSetOpen(_lastOpenedPath);
+                SheetPropertyGrid.Clear();
+            }
+            else
+            {
+                // AutoCAD had al de lock → alleen saven, NIET unlocken
+                Log.Info("[SSM] Save zonder unlock (AutoCAD heeft lock).");
+                DatabaseHelper.SaveWithoutUnlock(_database);
+                MessageBox.Show("Opgeslagen. Let op: het bestand was al open in AutoCAD — herlaad de Sheet Set in AutoCAD om de wijzigingen te zien.", "Opgeslagen", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         private void LoadTreeFromDatabase(IAcSmDatabase db)
@@ -152,8 +162,8 @@ namespace BoekSolutions.SheetSetEditor.UI
                 return;
             }
 
-            var locked = DatabaseHelper.TryLock(_database);
-            if (!locked)
+            _weLockedDatabase = DatabaseHelper.TryLock(_database);
+            if (!_weLockedDatabase && !DatabaseHelper.IsLocked(_database))
             {
                 Log.Info("[SSM] Database kon niet gelocked worden.");
                 return;
@@ -174,16 +184,20 @@ namespace BoekSolutions.SheetSetEditor.UI
 
         public void OnSheetSetClose()
         {
-            // Eerst de database netjes unlocken (en evt. saven)
             if (_database != null)
             {
-                if (DatabaseHelper.IsLocked(_database))
+                if (_weLockedDatabase && DatabaseHelper.IsLocked(_database))
                 {
+                    // Alleen unlocken als wij de lock gezet hebben
                     DatabaseHelper.UnlockDb(_database);
                     Log.Info("[SSM] Database ge-unlocked bij sluiten.");
                 }
+                else if (!_weLockedDatabase)
+                {
+                    Log.Info("[SSM] Database lock bij sluiten niet aangeraakt (AutoCAD heeft lock).");
+                }
                 _database = null;
-                // Forceren van garbage collection kan soms helpen bij COM-lekken:
+                _weLockedDatabase = false;
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
             }

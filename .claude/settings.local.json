@@ -39,7 +39,8 @@
       "PowerShell([System.IO.Directory]::GetFiles\\(\"C:\\\\Program Files\\\\Autodesk\\\\AutoCAD 2027\", \"acad.exe\", [System.IO.SearchOption]::TopDirectoryOnly\\) | ForEach-Object { [System.Diagnostics.FileVersionInfo]::GetVersionInfo\\($_\\) | Select-Object ProductVersion })",
       "PowerShell([System.IO.Directory]::GetFileSystemEntries\\(\"$env:APPDATA\\\\Autodesk\\\\ApplicationPlugins\\\\Nexus.AutoCAD.plugin.bundle\"\\))",
       "Bash(dir *)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(msbuild BoekSolutions.SheetSetEditor.sln /p:Configuration=Debug /p:Platform=x64 /t:Build /v:minimal)"
     ]
   }
 }
