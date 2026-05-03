@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows.Controls;
+using SheetSet.Core.Import.History;
 using SheetSet.Core.Models;
 
 namespace SheetSetEditor.Models;
@@ -9,6 +10,9 @@ public sealed class DocumentContext
 {
     public SheetSetDocument Document { get; }
     public bool IsDirty { get; set; }
+
+    /// <summary>Snapshot taken just before the last import; null when no import has been done or after undo.</summary>
+    public ImportSnapshot? LastImportSnapshot { get; set; }
 
     // Per-document selection state (preserved when switching active doc)
     public HashSet<SheetNode> SelectedSheets { get; } = [];

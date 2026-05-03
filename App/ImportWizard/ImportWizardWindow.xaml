@@ -1,0 +1,334 @@
+<Window x:Class="SheetSetEditor.ImportWizard.ImportWizardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Importeren" Height="660" Width="760"
+        ResizeMode="CanResize" MinHeight="560" MinWidth="660"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="StepLabel" Grid.Row="0"
+                   FontWeight="SemiBold" FontSize="14" Foreground="#1976D2"/>
+
+        <!-- ══ Stap 1 — Bestand(en) kiezen ══ -->
+        <Grid x:Name="Page1" Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="6"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="6"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="12"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="6"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Importbestand:" Foreground="#444"/>
+
+            <Grid Grid.Row="2" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="90"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="FilePathBox" Grid.Column="0"
+                         Height="26" Padding="4,2" VerticalContentAlignment="Center"
+                         IsReadOnly="True" Background="#F8F8F8"/>
+                <Button Grid.Column="2" Content="Bladeren…" Height="26"
+                        Click="BrowseFile_Click"/>
+            </Grid>
+
+            <!-- placeholder row 4 stays empty (keeps row indices intact) -->
+
+            <StackPanel x:Name="FormatPanel" Grid.Row="6" Visibility="Collapsed">
+                <TextBlock x:Name="FormatLabel" Foreground="#555" FontSize="12" TextWrapping="Wrap"/>
+                <TextBlock x:Name="ValidationLabel" Foreground="#E53935" FontSize="12"
+                           TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed"/>
+            </StackPanel>
+
+            <Grid x:Name="PreviewPanel" Grid.Row="8" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="4"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="Voorbeeld (eerste bestand):"
+                           Foreground="#444" FontSize="12"/>
+                <DataGrid x:Name="PreviewGrid" Grid.Row="2"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                          RowBackground="White" AlternatingRowBackground="#F5F9FF"
+                          BorderBrush="#DDD" BorderThickness="1"
+                          FontSize="12" CanUserResizeRows="False"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto"/>
+            </Grid>
+        </Grid>
+
+        <!-- ══ Stap 2 — Koppelen ══ -->
+        <Grid x:Name="Page2" Grid.Row="2" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="4"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Profiel -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="80"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Profiel:" VerticalAlignment="Center" Foreground="#444"/>
+                <ComboBox  x:Name="ProfileCombo" Grid.Column="2" Height="26"
+                           DisplayMemberPath="Name"
+                           SelectionChanged="ProfileCombo_SelectionChanged"/>
+                <Button Grid.Column="4" Content="Laad profiel"       Height="26" Click="LoadProfile_Click"/>
+                <Button Grid.Column="6" Content="Sla op als profiel…" Height="26" Click="SaveProfile_Click"/>
+                <Button Grid.Column="8" Content="× Verwijder"        Height="26"
+                        Foreground="#E53935" Background="Transparent"
+                        BorderBrush="#FFCDD2" BorderThickness="1"
+                        Click="DeleteProfile_Click"/>
+            </Grid>
+
+            <TextBlock x:Name="ProfileHintLabel" Grid.Row="1"
+                       Foreground="#1976D2" FontSize="11" FontStyle="Italic"
+                       Margin="0,2,0,0" Visibility="Collapsed" TextWrapping="Wrap"/>
+
+            <!-- Bladkeuze -->
+            <Border Grid.Row="3" Background="#F5F9FF" BorderBrush="#BBDEFB"
+                    BorderThickness="1" CornerRadius="3" Padding="8,6">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Pas toe op:" VerticalAlignment="Center"
+                               Foreground="#444" Margin="0,0,10,0"/>
+                    <RadioButton x:Name="AllSheetsRadio" Content="Alle sheets"
+                                 IsChecked="True" VerticalAlignment="Center"
+                                 Margin="0,0,16,0" GroupName="SheetScope"/>
+                    <RadioButton x:Name="SelectedSheetsRadio" VerticalAlignment="Center"
+                                 GroupName="SheetScope">
+                        <RadioButton.Content>
+                            <TextBlock x:Name="SelectedSheetsLabel" Text="Geselecteerde sheets (0)"/>
+                        </RadioButton.Content>
+                    </RadioButton>
+                    <Button Content="Kies sheets…" Height="22" Padding="8,0"
+                            FontSize="11" Margin="12,0,0,0" VerticalAlignment="Center"
+                            Click="PickSheets_Click"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Kolomhoofden -->
+            <Grid Grid.Row="5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="90"/>
+                    <ColumnDefinition Width="140"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="52"/>
+                    <ColumnDefinition Width="26"/>
+                    <ColumnDefinition Width="28"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Veld"             Foreground="#888" FontSize="11" FontWeight="SemiBold"/>
+                <TextBlock Grid.Column="1" Text="Voorbeeld"        Foreground="#888" FontSize="11" FontWeight="SemiBold"/>
+                <TextBlock Grid.Column="3" Text="Sheet Set property" Foreground="#888" FontSize="11" FontWeight="SemiBold"/>
+            </Grid>
+
+            <!-- Mapping-rijen -->
+            <ScrollViewer Grid.Row="7" VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="MappingList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="20"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="52"/>
+                                    <ColumnDefinition Width="26"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="{Binding SourceField}"
+                                           VerticalAlignment="Center"
+                                           FontFamily="Consolas" FontSize="12" Foreground="#333">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsDerived}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Grid.Column="0" Text="{Binding DerivedLabel}"
+                                           VerticalAlignment="Center"
+                                           FontSize="12" Foreground="#1976D2"
+                                           FontStyle="Italic" Visibility="Collapsed">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsDerived}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <TextBlock Grid.Column="1" Text="{Binding SourceSample}"
+                                           VerticalAlignment="Center" FontSize="12"
+                                           Foreground="#666" TextTrimming="CharacterEllipsis"/>
+
+                                <TextBlock Grid.Column="2" Text="→"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="#AAA" FontSize="14"/>
+
+                                <ComboBox Grid.Column="3"
+                                          ItemsSource="{Binding AvailableTargets}"
+                                          SelectedItem="{Binding TargetProperty, Mode=TwoWay}"
+                                          Height="24" FontSize="12" IsEditable="True"/>
+
+                                <!-- Splits-knop (alleen niet-afgeleide rijen) -->
+                                <Button Grid.Column="4" Content="✂ Splits"
+                                        Height="22" Padding="2,0" FontSize="11"
+                                        VerticalAlignment="Center"
+                                        Background="Transparent" BorderThickness="1"
+                                        BorderBrush="#BBDEFB" Foreground="#1976D2"
+                                        Click="AddSplit_Click" Tag="{Binding SourceField}">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsDerived}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <!-- Validatie-knop -->
+                                <Button Grid.Column="5" Content="⚙"
+                                        Height="22" Width="22" Padding="0" FontSize="12"
+                                        VerticalAlignment="Center"
+                                        Background="Transparent" BorderThickness="0"
+                                        Foreground="#999"
+                                        Click="OpenValidation_Click" Tag="{Binding SourceField}"
+                                        ToolTip="{Binding ValidationSummary}">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasValidation}" Value="True">
+                                                    <Setter Property="Foreground" Value="#1976D2"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <Button Grid.Column="6" Content="×"
+                                        Height="22" Width="22" Padding="0" FontSize="13"
+                                        VerticalAlignment="Center"
+                                        Background="Transparent" BorderThickness="0"
+                                        Foreground="#E53935"
+                                        Click="ClearMapping_Click" Tag="{Binding SourceField}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Auto-koppelen -->
+            <StackPanel Grid.Row="9" Orientation="Horizontal">
+                <Button Content="Auto-koppelen op naam" Height="26" Padding="10,0"
+                        Click="AutoMap_Click"/>
+                <TextBlock x:Name="AutoMapLabel" VerticalAlignment="Center"
+                           Margin="10,0,0,0" Foreground="#777" FontSize="12"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- ══ Stap 3 — Voorbeeld (dry run) ══ -->
+        <Grid x:Name="Page3" Grid.Row="2" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="DryRunSummary" Grid.Row="0"
+                       FontSize="13" Foreground="#444" TextWrapping="Wrap"/>
+
+            <DataGrid x:Name="DryRunGrid" Grid.Row="2"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                      RowBackground="White" AlternatingRowBackground="#F5F9FF"
+                      BorderBrush="#DDD" BorderThickness="1"
+                      FontSize="12" CanUserResizeRows="False"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto"/>
+        </Grid>
+
+        <!-- ══ Stap 4 — Resultaat ══ -->
+        <Grid x:Name="Page4" Grid.Row="2" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="12"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="ResultSummary" Grid.Row="0"
+                       FontSize="14" FontWeight="SemiBold" Foreground="#333"/>
+
+            <ListBox x:Name="ResultList" Grid.Row="2"
+                     BorderBrush="#DDD" BorderThickness="1" FontSize="12"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" Padding="2"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+
+        <!-- Navigatieknoppen -->
+        <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="6"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="6"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button x:Name="BackButton"   Grid.Column="1" Content="← Terug"
+                    Width="90" Height="28" IsEnabled="False" Click="Back_Click"/>
+            <Button x:Name="NextButton"   Grid.Column="3" Content="Volgende →"
+                    Width="120" Height="28" IsEnabled="False" Click="Next_Click"/>
+            <Button x:Name="CancelButton" Grid.Column="5" Content="Annuleren"
+                    Width="90" Height="28" Click="Cancel_Click"/>
+        </Grid>
+    </Grid>
+</Window>

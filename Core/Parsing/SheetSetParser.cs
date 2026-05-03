@@ -43,6 +43,7 @@ public sealed class SheetSetParser
             ProjectMilestone = XmlUtil.GetPropValue(sheetSetElement, "ProjectMilestone"),
             BaseFolder = baseFolder,
             CustomProperties = XmlUtil.ReadCustomProperties(sheetSetElement),
+            CustomPropertyDefinitions = XmlUtil.ReadCustomPropertyDefinitions(sheetSetElement),
             Element = sheetSetElement
         };
 

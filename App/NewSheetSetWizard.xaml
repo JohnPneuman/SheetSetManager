@@ -1,0 +1,146 @@
+<Window x:Class="SheetSetEditor.NewSheetSetWizard"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Nieuwe sheet set" Height="480" Width="560"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- step header -->
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="*"/>     <!-- page content -->
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="Auto"/>  <!-- nav buttons -->
+        </Grid.RowDefinitions>
+
+        <!-- Step header -->
+        <TextBlock x:Name="StepLabel" Grid.Row="0"
+                   FontWeight="SemiBold" FontSize="14" Foreground="#1976D2"
+                   Text="Stap 1 van 2: Opslaan &amp; Template"/>
+
+        <!-- ══ Page 1 ══ -->
+        <Grid x:Name="Page1Grid" Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Opslaan in:" Foreground="#444"/>
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="90"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="FolderBox" Grid.Column="0"
+                         Height="26" Padding="4,2" VerticalContentAlignment="Center"/>
+                <Button  Grid.Column="2" Content="Bladeren…" Height="26"
+                         Click="BrowseFolder_Click"/>
+            </Grid>
+
+            <TextBlock Grid.Row="4" Text="Template (.dst):" Foreground="#444"/>
+            <Grid Grid.Row="6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="6"/>
+                    <ColumnDefinition Width="90"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="TemplateBox" Grid.Column="0"
+                         Height="26" Padding="4,2" VerticalContentAlignment="Center"/>
+                <Button  Grid.Column="2" Content="Bladeren…" Height="26"
+                         Click="BrowseTemplate_Click"/>
+            </Grid>
+        </Grid>
+
+        <!-- ══ Page 2 ══ -->
+        <Grid x:Name="Page2Grid" Grid.Row="2" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="110"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Naam:" VerticalAlignment="Center" Foreground="#444"/>
+            <TextBox   Grid.Row="0" Grid.Column="1" x:Name="NameBox"
+                       Height="26" Padding="4,2" VerticalContentAlignment="Center"/>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Omschrijving:" VerticalAlignment="Center" Foreground="#444"/>
+            <TextBox   Grid.Row="2" Grid.Column="1" x:Name="DescBox"
+                       Height="26" Padding="4,2" VerticalContentAlignment="Center"/>
+
+            <!-- Properties preview -->
+            <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
+                       Text="Properties uit template:" Foreground="#444" Margin="0,0,0,4"/>
+            <ListView  Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2"
+                       x:Name="PropsPreview"
+                       FontSize="12" BorderBrush="#DDD">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="Property" Width="200"
+                                        DisplayMemberBinding="{Binding Name}"/>
+                        <GridViewColumn Header="Standaard waarde" Width="160">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             BorderThickness="0" Background="Transparent"
+                                             Height="20" Padding="2,0" VerticalContentAlignment="Center"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="Type" Width="60"
+                                        DisplayMemberBinding="{Binding TypeLabel}"/>
+                        <GridViewColumn Header="" Width="30">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="&#xD7;"
+                                            Tag="{Binding}"
+                                            Click="DeleteProp_Click"
+                                            Width="20" Height="20" Padding="0"
+                                            FontSize="13"
+                                            Background="Transparent" BorderThickness="0"
+                                            Foreground="#E53935"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+            <Button    Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2"
+                       Content="Importeren vanuit CSV/TSV…"
+                       IsEnabled="False"
+                       HorizontalAlignment="Left"
+                       Padding="8,3" Margin="0,4,0,0" FontSize="11"/>
+        </Grid>
+
+        <!-- Navigation buttons -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="BackButton" Content="&lt; Terug"
+                    Width="80" Height="26" Margin="0,0,6,0"
+                    Visibility="Collapsed"
+                    Click="BackButton_Click"/>
+            <Button x:Name="NextButton" Content="Volgende &gt;"
+                    Width="90" Height="26" Margin="0,0,6,0"
+                    IsDefault="True"
+                    Click="NextButton_Click"/>
+            <Button Content="Annuleren" Width="80" Height="26"
+                    IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

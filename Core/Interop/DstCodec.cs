@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -52,8 +53,29 @@ public static class DstCodec
         using (var writer = XmlWriter.Create(ms, settings))
             doc.Save(writer);
 
-        var dstBytes = EncodeToDst(ms.ToArray());
-        File.WriteAllBytes(dstPath, dstBytes);
+        // .NET XmlWriter adds a space before /> in empty elements (e.g. vt="13" />).
+        // AutoCAD's parser requires no space (vt="13"/>), so we strip it here.
+        // Also normalise the encoding declaration to uppercase UTF-8 as AutoCAD writes it.
+        var xmlText = Encoding.UTF8.GetString(ms.ToArray());
+        xmlText = xmlText.Replace(" />", "/>");
+        xmlText = xmlText.Replace("encoding=\"utf-8\"", "encoding=\"UTF-8\"");
+
+        var dstBytes = EncodeToDst(Encoding.UTF8.GetBytes(xmlText));
+
+        // Schrijf naar een tijdelijk bestand, vervang dan atomair zodat het origineel
+        // nooit in een half-geschreven staat achterblijft bij een fout.
+        var tempPath = dstPath + ".tmp";
+        try
+        {
+            File.WriteAllBytes(tempPath, dstBytes);
+            File.Move(tempPath, dstPath, overwrite: true);
+        }
+        catch
+        {
+            if (File.Exists(tempPath))
+                File.Delete(tempPath);
+            throw;
+        }
     }
 
     private static byte[] Transform(byte[] input, byte[] map)

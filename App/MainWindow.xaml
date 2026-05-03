@@ -74,7 +74,11 @@
                     </TreeView.Resources>
                     <TreeView.ContextMenu>
                         <ContextMenu x:Name="TreeContextMenu" Opened="TreeContextMenu_Opened">
-                            <MenuItem x:Name="CtxNewSubset"   Header="Nieuwe subset"     Click="CtxNewSubset_Click"/>
+                            <MenuItem x:Name="CtxNewSubset"   Header="Nieuwe subset…"    Click="CtxNewSubset_Click"/>
+                            <MenuItem x:Name="CtxNewSheet"    Header="Nieuw blad…"       Click="CtxNewSheet_Click"/>
+                            <Separator/>
+                            <MenuItem x:Name="CtxImportCsv"   Header="CSV/TSV importeren op selectie…"
+                                      Click="CtxImportCsv_Click"/>
                             <Separator/>
                             <MenuItem x:Name="CtxRenameItem"  Header="Hernaam…"          Click="CtxRenameItem_Click"/>
                             <Separator/>
@@ -114,8 +118,15 @@
                                     <ColumnDefinition Width="120"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Naam:" Style="{StaticResource LabelStyle}"/>
-                                <TextBox x:Name="SubsetNameBox" Grid.Column="1"
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Naam:" Style="{StaticResource LabelStyle}"/>
+                                <TextBox x:Name="SubsetNameBox" Grid.Row="0" Grid.Column="1"
+                                         Style="{StaticResource FieldBox}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Omschrijving:" Style="{StaticResource LabelStyle}"/>
+                                <TextBox x:Name="SubsetDescBox" Grid.Row="1" Grid.Column="1"
                                          Style="{StaticResource FieldBox}"/>
                             </Grid>
                         </GroupBox>
@@ -134,6 +145,8 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Bladnummer:" Style="{StaticResource LabelStyle}"/>
@@ -144,6 +157,14 @@
 
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Omschrijving:" Style="{StaticResource LabelStyle}"/>
                                 <TextBox   Grid.Row="2" Grid.Column="1" x:Name="TbDesc"    Style="{StaticResource FieldBox}"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Layout:" Style="{StaticResource LabelStyle}"/>
+                                <TextBox   Grid.Row="3" Grid.Column="1" x:Name="TbLayout"  Style="{StaticResource FieldBox}"
+                                           IsReadOnly="True" Background="#F0F0F0" Foreground="#888888" BorderBrush="#DDDDDD"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Bestand:" Style="{StaticResource LabelStyle}"/>
+                                <TextBox   Grid.Row="4" Grid.Column="1" x:Name="TbDwgFile" Style="{StaticResource FieldBox}"
+                                           IsReadOnly="True" Background="#F0F0F0" Foreground="#888888" BorderBrush="#DDDDDD"/>
                             </Grid>
                         </GroupBox>
 
@@ -203,6 +224,12 @@
                                                FontWeight="SemiBold" Padding="4,3" FontSize="12"/>
                                 </Grid>
                                 <ItemsControl x:Name="CustomPropsPanel"/>
+                                <Button x:Name="AddCustomPropButton"
+                                        Content="+ Nieuwe property"
+                                        HorizontalAlignment="Left"
+                                        Padding="8,3" Margin="4,4,4,2"
+                                        FontSize="11"
+                                        Click="AddCustomPropButton_Click"/>
                             </StackPanel>
                         </Expander>
 
@@ -218,15 +245,20 @@
 
                     <!-- Logo -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Image Source="Resources/Boek.png" Height="18" Width="18"
-                               Margin="0,0,5,0" VerticalAlignment="Center"
+                        <Image Source="Resources/Boek.png" Height="64" Width="64"
+                               Margin="0,0,7,0" VerticalAlignment="Center"
                                RenderOptions.BitmapScalingMode="HighQuality"/>
-                        <TextBlock Text="Boek Solutions" FontSize="10" Foreground="#999"
+                        <TextBlock Text="Boek Solutions" FontSize="12" Foreground="#999"
                                    VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <!-- Buttons -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="UndoPropDeleteButton"
+                                Content="↩ Ongedaan" Height="25" Padding="8,0"
+                                Margin="5,0" IsEnabled="False"
+                                Click="UndoPropDelete_Click"
+                                ToolTip="Verwijdering van laatste custom property ongedaan maken"/>
                         <Button Content="Apply" Width="75" Height="25" Margin="5,0"
                                 Click="ApplyButton_Click"
                                 IsEnabled="{Binding IsDocumentLoaded}"/>

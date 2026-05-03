@@ -77,7 +77,17 @@ public sealed class SheetSetInfo
     public string? ProjectMilestone { get; set; }
     public string? BaseFolder { get; set; }
     public Dictionary<string, string> CustomProperties { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<CustomPropertyDefinition> CustomPropertyDefinitions { get; set; } = [];
     public XElement? Element { get; set; }
+}
+
+public sealed class CustomPropertyDefinition
+{
+    public string Name  { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+    // 2 = per-sheet veld, 1 = sheetset veld
+    public int Flags { get; set; } = 2;
+    public string TypeLabel => Flags == 1 ? "Set" : "Blad";
 }
 
 public sealed class SubsetInfo

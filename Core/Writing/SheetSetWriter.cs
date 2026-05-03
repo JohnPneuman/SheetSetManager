@@ -53,7 +53,119 @@ public static class SheetSetWriter
         if (outputPath != null)
             doc.SourceDstPath = outputPath;
 
+        BackupHelper.BackupFile(path);
         DstCodec.SaveXmlAsDst(doc.SourceDocument, path);
+    }
+
+    // ─── SheetSet rename ──────────────────────────────────────────────────────
+
+    // ─── SheetSet custom property definitions ─────────────────────────────────
+
+    // flags: 2 = per-sheet veld (zichtbaar per blad), 1 = sheetset veld (één waarde voor de set)
+    public static void AddSheetSetCustomProperty(SheetSetDocument doc, string name, int flags, string defaultValue = "")
+    {
+        var sheetSetEl = doc.Info.Element
+            ?? throw new InvalidOperationException("SheetSetDocument heeft geen XElement referentie.");
+
+        XmlUtil.SetCustomProperty(sheetSetEl, name, defaultValue, flags);
+
+        var def = new CustomPropertyDefinition { Name = name, Value = defaultValue, Flags = flags };
+        doc.Info.CustomPropertyDefinitions.Add(def);
+        doc.Info.CustomProperties[name] = defaultValue;
+
+        // Sheet-level property: zet ook een standaard waarde op alle bestaande sheets
+        if (flags == 2)
+        {
+            foreach (var sheet in doc.GetAllSheets())
+            {
+                if (sheet.Info.Element == null) continue;
+                XmlUtil.SetCustomProperty(sheet.Info.Element, name, defaultValue, flags);
+                sheet.Info.CustomProperties[name] = defaultValue;
+            }
+        }
+    }
+
+    public static void DeleteSheetSetCustomProperty(SheetSetDocument doc, string name)
+    {
+        var sheetSetEl = doc.Info.Element
+            ?? throw new InvalidOperationException("SheetSetDocument heeft geen XElement referentie.");
+
+        XmlUtil.DeleteCustomProperty(sheetSetEl, name);
+
+        // Verwijder ook de per-sheet waarden bij blad-velden (Flags=2)
+        foreach (var sheet in doc.GetAllSheets())
+        {
+            if (sheet.Info.Element == null) continue;
+            XmlUtil.DeleteCustomProperty(sheet.Info.Element, name);
+            sheet.Info.CustomProperties.Remove(name);
+        }
+
+        doc.Info.CustomPropertyDefinitions.RemoveAll(d =>
+            string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase));
+        doc.Info.CustomProperties.Remove(name);
+    }
+
+    // ─── New sheetset from template ───────────────────────────────────────────
+
+    public static void CreateFromTemplate(
+        string templateDstPath, string outputPath, string name, string? description,
+        Dictionary<string, string>? valueOverrides = null,
+        ISet<string>? propertyNamesToKeep = null)
+    {
+        var tempXml = DstCodec.DecodeDstToTempXml(templateDstPath);
+        try
+        {
+            var xdoc = XDocument.Load(tempXml, LoadOptions.PreserveWhitespace);
+
+            var dbEl = xdoc.Descendants("AcSmDatabase").FirstOrDefault();
+            var sheetSetEl = xdoc.Descendants("AcSmSheetSet").FirstOrDefault()
+                ?? throw new InvalidOperationException("Geen AcSmSheetSet gevonden in template.");
+
+            // Naam + omschrijving
+            XmlUtil.SetPropValue(sheetSetEl, "Name", name);
+            if (!string.IsNullOrEmpty(description))
+                XmlUtil.SetPropValue(sheetSetEl, "Desc", description);
+
+            // Standaard waarde overrides vanuit de wizard
+            if (valueOverrides != null)
+                foreach (var (propName, propValue) in valueOverrides)
+                    XmlUtil.SetCustomProperty(sheetSetEl, propName, propValue);
+
+            // Verwijder properties die de gebruiker uit de wizard heeft verwijderd
+            if (propertyNamesToKeep != null)
+            {
+                var allDefs = XmlUtil.ReadCustomPropertyDefinitions(sheetSetEl);
+                foreach (var def in allDefs)
+                {
+                    if (!propertyNamesToKeep.Contains(def.Name))
+                    {
+                        XmlUtil.DeleteCustomProperty(sheetSetEl, def.Name);
+                        foreach (var sheetEl in xdoc.Descendants("AcSmSheet"))
+                            XmlUtil.DeleteCustomProperty(sheetEl, def.Name);
+                    }
+                }
+            }
+
+            // Nieuwe unieke vingerafdruk zodat AutoCAD het als een nieuw bestand herkent
+            if (dbEl != null)
+            {
+                var fp = dbEl.Elements("AcSmProp")
+                    .FirstOrDefault(x => string.Equals((string?)x.Attribute("propname"), "DbFingerPrint",
+                        StringComparison.OrdinalIgnoreCase));
+                if (fp != null) fp.Value = "g" + Guid.NewGuid().ToString("D").ToUpperInvariant();
+
+                var rev = dbEl.Elements("AcSmProp")
+                    .FirstOrDefault(x => string.Equals((string?)x.Attribute("propname"), "FileRevision",
+                        StringComparison.OrdinalIgnoreCase));
+                if (rev != null) rev.Value = "0";
+            }
+
+            DstCodec.SaveXmlAsDst(xdoc, outputPath);
+        }
+        finally
+        {
+            if (File.Exists(tempXml)) File.Delete(tempXml);
+        }
     }
 
     // ─── SheetSet rename ──────────────────────────────────────────────────────
@@ -66,7 +178,27 @@ public static class SheetSetWriter
         doc.Info.Name = newName;
     }
 
+    public static void UpdateSheetSetInfo(SheetSetDocument doc,
+        string? description, string? projectName, string? projectNumber,
+        string? projectPhase, string? projectMilestone)
+    {
+        var el = doc.Info.Element
+            ?? throw new InvalidOperationException("SheetSetDocument heeft geen XElement referentie.");
+        ApplyIfSet(el, "Desc",             description,      v => doc.Info.Description     = v);
+        ApplyIfSet(el, "ProjectName",      projectName,      v => doc.Info.ProjectName     = v);
+        ApplyIfSet(el, "ProjectNumber",    projectNumber,    v => doc.Info.ProjectNumber   = v);
+        ApplyIfSet(el, "ProjectPhase",     projectPhase,     v => doc.Info.ProjectPhase    = v);
+        ApplyIfSet(el, "ProjectMilestone", projectMilestone, v => doc.Info.ProjectMilestone = v);
+    }
+
     // ─── Subset operations ────────────────────────────────────────────────────
+
+    public static void UpdateSubsetInfo(SubsetNode node, string? description)
+    {
+        var el = node.Info.Element
+            ?? throw new InvalidOperationException($"Subset '{node.Name}' heeft geen XElement referentie.");
+        ApplyIfSet(el, "Desc", description, v => node.Info.Description = v);
+    }
 
     public static void RenameSheet(SheetNode node, string newTitle)
     {
@@ -90,9 +222,8 @@ public static class SheetSetWriter
             ?? throw new InvalidOperationException("Geen parent element beschikbaar voor het toevoegen van een sheet.");
 
         var newEl = new XElement("AcSmSheet",
-            new XElement("AcSmProp", new XAttribute("propname", "Number"), number),
-            new XElement("AcSmProp", new XAttribute("propname", "Title"), title),
-            new XElement("AcSmProp", new XAttribute("propname", "Desc"), ""));
+            new XElement("AcSmProp", new XAttribute("propname", "Number"), new XAttribute("vt", "8"), number),
+            new XElement("AcSmProp", new XAttribute("propname", "Title"),  new XAttribute("vt", "8"), title));
 
         parentEl.Add(newEl);
 
@@ -121,6 +252,22 @@ public static class SheetSetWriter
         var node = new SubsetNode(info, [], []);
         (parent?.Subsets ?? doc.RootSubsets).Add(node);
         return node;
+    }
+
+    public static void DeleteSheet(SheetSetDocument doc, SheetNode node)
+    {
+        node.Info.Element?.Remove();
+        if (doc.RootSheets.Remove(node)) return;
+        foreach (var sub in doc.RootSubsets)
+            if (RemoveSheetFromSubset(sub, node)) return;
+    }
+
+    private static bool RemoveSheetFromSubset(SubsetNode parent, SheetNode target)
+    {
+        if (parent.Sheets.Remove(target)) return true;
+        foreach (var sub in parent.Subsets)
+            if (RemoveSheetFromSubset(sub, target)) return true;
+        return false;
     }
 
     // ─── Drag & drop / reorder ────────────────────────────────────────────────
@@ -178,7 +325,7 @@ public static class SheetSetWriter
 
     private static void ApplyIfSet(XElement element, string propName, string? value, Action<string> updateModel)
     {
-        if (value == null) return;
+        if (string.IsNullOrEmpty(value)) return;
         XmlUtil.SetPropValue(element, propName, value);
         updateModel(value);
     }

@@ -44,6 +44,7 @@ namespace BoekSolutions.SheetSetEditor.Helpers
                     return;
                 }
 
+                BackupHelper.BackupDatabase(db);
                 SaveHelper.SaveDatabase(db);
 
                 db.Save(null);
@@ -64,13 +65,17 @@ namespace BoekSolutions.SheetSetEditor.Helpers
                 if (saveBeforeUnlock)
                 {
                     Log.Info("[SSM] Save vóór unlock (via UnlockDb)...");
-
                     SaveHelper.SaveDatabase(db);
                 }
 
+                BackupHelper.BackupDatabase(db);
+
+                db.Save(null);
+                Log.Info("[SSM] Database opgeslagen vóór unlock.");
+
                 db.UnlockDb(db, true);
                 Log.Info("[SSM] Database ge-unlocked.");
-            });
+            }, "DatabaseHelper.UnlockDb");
         }
 
         public static bool IsLocked(IAcSmDatabase db)

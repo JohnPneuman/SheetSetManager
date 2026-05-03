@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -19,6 +21,13 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm = new();
     private readonly SheetSetParser _parser = new();
+
+    // Undo stack for custom-property deletions
+    private sealed record DeletedPropUndo(
+        DocumentContext Ctx,
+        CustomPropertyDefinition Def,
+        Dictionary<SheetInfo, string> SheetValues);
+    private readonly Stack<DeletedPropUndo> _deletedPropStack = new();
 
     // Drag & drop state
     private Point _dragStart;
@@ -79,8 +88,12 @@ public partial class MainWindow : Window
         menu.Items.Add(new Separator());
 
         // ── Actions ──
+        AddMenuItem(menu, "Nieuwe sheet set…",    (_, _) => NewSheetSet());
         AddMenuItem(menu, "Openen…",              (_, _) => OpenFile());
-        AddMenuItem(menu, "CSV/TSV importeren…",  (_, _) => ImportCsv(),  _vm.IsDocumentLoaded);
+        AddMenuItem(menu, "CSV/TSV importeren…",  (_, _) => OpenImportWizard(), _vm.IsDocumentLoaded);
+        AddMenuItem(menu, "Exporteer naar CSV…", (_, _) => ExportToCsv(),     _vm.IsDocumentLoaded);
+        AddMenuItem(menu, "Ongedaan maken (import)", (_, _) => UndoLastImport(),
+            _vm.IsDocumentLoaded && _vm.ActiveDocument?.LastImportSnapshot != null);
         menu.Items.Add(new Separator());
         AddMenuItem(menu, "Sluiten",              (_, _) => CloseActiveDocument(), _vm.IsDocumentLoaded);
 
@@ -98,6 +111,13 @@ public partial class MainWindow : Window
     // ═══════════════════════════════════════════════════════════
     // File operations
     // ═══════════════════════════════════════════════════════════
+
+    private void NewSheetSet()
+    {
+        var wizard = new NewSheetSetWizard { Owner = this };
+        if (wizard.ShowDialog() == true)
+            LoadFile(wizard.OutputPath);
+    }
 
     private void OpenFile()
     {
@@ -198,37 +218,134 @@ public partial class MainWindow : Window
         FileDropdownButton.Content = _vm.FileTitle;
     }
 
-    private void ImportCsv()
+    private void OpenImportWizard()
     {
         var ctx = _vm.ActiveDocument;
         if (ctx == null) return;
-        var dlg = new OpenFileDialog
+        OpenImportWizardForContext(ctx);
+    }
+
+    private void OpenImportWizardForContext(DocumentContext ctx)
+    {
+        var wizard = new ImportWizard.ImportWizardWindow(ctx) { Owner = this };
+        wizard.ShowDialog();
+
+        if (ctx.IsDirty)
         {
-            Title = "CSV of TSV importeren",
-            Filter = "CSV/TSV bestanden (*.csv;*.tsv;*.txt)|*.csv;*.tsv;*.txt|Alle bestanden (*.*)|*.*"
-        };
-        if (dlg.ShowDialog() != true) return;
-        try
-        {
-            var allSheets = ctx.Document.GetAllSheets().ToList();
-            var updates = CsvTsvImporter.Import(dlg.FileName, allSheets);
-            if (updates.Count == 0)
-            {
-                MessageBox.Show("Geen overeenkomende sheets gevonden.", "Geen updates",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-            SheetSetWriter.Apply(updates);
-            ctx.IsDirty = true;
             _vm.MarkDirty();
             RebuildTree();
             RefreshPropertyPanel(ctx);
-            _vm.StatusText = $"{updates.Count} sheets bijgewerkt via CSV/TSV";
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Export / Undo
+    // ═══════════════════════════════════════════════════════════
+
+    private void ExportToCsv()
+    {
+        var ctx = _vm.ActiveDocument;
+        if (ctx == null) return;
+
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title            = "Exporteer naar CSV",
+            Filter           = "CSV-bestanden (*.csv)|*.csv",
+            DefaultExt       = ".csv",
+            FileName         = ctx.DisplayName
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        try
+        {
+            SheetSet.Core.Import.Export.CsvExporter.ExportToFile(ctx.Document, dlg.FileName);
+            _vm.StatusText = $"Geëxporteerd naar {System.IO.Path.GetFileName(dlg.FileName)}";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Fout bij importeren:\n{ex.Message}", "Fout", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Fout bij exporteren:\n{ex.Message}", "Fout",
+                MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private void UndoLastImport()
+    {
+        var ctx  = _vm.ActiveDocument;
+        var snap = ctx?.LastImportSnapshot;
+        if (snap == null) return;
+
+        var confirm = MessageBox.Show(
+            $"Import van \"{snap.SourceDescription}\" ({snap.Timestamp:HH:mm:ss}) ongedaan maken?",
+            "Ongedaan maken", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.Yes) return;
+
+        foreach (var s in snap.Sheets)
+        {
+            if (s.Sheet.Element == null) continue;
+
+            // Restore XML content without replacing the element reference
+            s.Sheet.Element.RemoveAll();
+            foreach (var attr in s.OriginalElement.Attributes())
+                s.Sheet.Element.Add(new System.Xml.Linq.XAttribute(attr));
+            foreach (var child in s.OriginalElement.Elements())
+                s.Sheet.Element.Add(new System.Xml.Linq.XElement(child));
+
+            s.Sheet.CustomProperties.Clear();
+            foreach (var kv in s.OriginalCustomProperties)
+                s.Sheet.CustomProperties[kv.Key] = kv.Value;
+        }
+
+        ctx!.LastImportSnapshot = null;
+        ctx.IsDirty             = true;
+        _vm.MarkDirty();
+        RefreshPropertyPanel(ctx);
+        _vm.StatusText = $"Import ongedaan gemaakt ({snap.SourceDescription})";
+    }
+
+    private void UndoPropDelete_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_deletedPropStack.TryPop(out var entry)) return;
+        var doc = entry.Ctx.Document;
+        var def = entry.Def;
+
+        // Restore definition in the XML bag and the in-memory model
+        if (doc.Info.Element != null)
+            XmlUtil.SetCustomProperty(doc.Info.Element, def.Name, def.Value, def.Flags);
+
+        if (!doc.Info.CustomPropertyDefinitions.Any(d =>
+                d.Name.Equals(def.Name, StringComparison.OrdinalIgnoreCase)))
+            doc.Info.CustomPropertyDefinitions.Add(def);
+
+        doc.Info.CustomProperties[def.Name] = def.Value;
+
+        // Restore per-sheet values (Flags=2 properties)
+        foreach (var (sheet, value) in entry.SheetValues)
+        {
+            if (sheet.Element != null)
+                XmlUtil.SetCustomProperty(sheet.Element, def.Name, value);
+            sheet.CustomProperties[def.Name] = value;
+        }
+
+        entry.Ctx.IsDirty = true;
+        _vm.MarkDirty();
+        RefreshPropertyPanel(entry.Ctx);
+        UndoPropDeleteButton.IsEnabled = _deletedPropStack.Count > 0;
+        _vm.StatusText = $"Verwijdering van '{def.Name}' ongedaan gemaakt.";
+    }
+
+    private void PushDeletedProp(DocumentContext ctx, CustomPropertyDefinition def)
+    {
+        var sheetValues = new Dictionary<SheetInfo, string>();
+        if (def.Flags == 2)
+        {
+            foreach (var sheet in ctx.Document.GetAllSheets())
+            {
+                if (sheet.Info.CustomProperties.TryGetValue(def.Name, out var v))
+                    sheetValues[sheet.Info] = v;
+            }
+        }
+        _deletedPropStack.Push(new DeletedPropUndo(ctx, def, sheetValues));
+        UndoPropDeleteButton.IsEnabled = true;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -240,34 +357,71 @@ public partial class MainWindow : Window
         var ctx = _vm.ActiveDocument;
         if (ctx == null) return;
 
-        // Apply SheetSet title rename
+        // Apply SheetSet properties
         if (ctx.SelectedRoot == ctx.Document)
         {
             var newName = SheetSetNameBox?.Text.Trim() ?? string.Empty;
-            if (newName.Length > 0 && newName != ctx.Document.Info.Name)
-            {
+            bool nameChanged = newName.Length > 0 && newName != ctx.Document.Info.Name;
+            if (nameChanged)
                 SheetSetWriter.RenameSheetSet(ctx.Document, newName);
-                ctx.IsDirty = true;
-                _vm.MarkDirty();
+
+            SheetSetWriter.UpdateSheetSetInfo(ctx.Document,
+                SheetSetDescBox?.Text.Trim(),
+                SheetSetProjectNameBox?.Text.Trim(),
+                SheetSetProjectNumberBox?.Text.Trim(),
+                SheetSetProjectPhaseBox?.Text.Trim(),
+                SheetSetProjectMilestoneBox?.Text.Trim());
+
+            var sheetSetEl2 = ctx.Document.Info.Element!;
+            if (_sheetSetPropsCtrl?.ItemsSource is IEnumerable<SheetSetCustomPropRow> setRows)
+            {
+                foreach (var row in setRows)
+                {
+                    XmlUtil.SetCustomProperty(sheetSetEl2, row.Key, row.Value, flags: 1);
+                    ctx.Document.Info.CustomProperties[row.Key] = row.Value;
+                    var def = ctx.Document.Info.CustomPropertyDefinitions
+                        .FirstOrDefault(d => string.Equals(d.Name, row.Key, StringComparison.OrdinalIgnoreCase));
+                    if (def != null) def.Value = row.Value;
+                }
+            }
+            if (_bladVeldenCtrl?.ItemsSource is IEnumerable<SheetSetCustomPropRow> bladRows)
+            {
+                foreach (var row in bladRows)
+                {
+                    XmlUtil.SetCustomProperty(sheetSetEl2, row.Key, row.Value, flags: 2);
+                    ctx.Document.Info.CustomProperties[row.Key] = row.Value;
+                    var def = ctx.Document.Info.CustomPropertyDefinitions
+                        .FirstOrDefault(d => string.Equals(d.Name, row.Key, StringComparison.OrdinalIgnoreCase));
+                    if (def != null) def.Value = row.Value;
+                }
+            }
+
+            ctx.IsDirty = true;
+            _vm.MarkDirty();
+            if (nameChanged)
+            {
                 RebuildTree();
-                _vm.StatusText = $"Sheet set hernoemd naar '{newName}'";
                 FileDropdownButton.Content = _vm.FileTitle;
             }
+            _vm.StatusText = "Sheet set bijgewerkt";
             return;
         }
 
-        // Apply subset rename
+        // Apply subset properties
         if (ctx.SelectedSubset != null)
         {
             var newName = SubsetNameBox?.Text.Trim() ?? string.Empty;
-            if (newName.Length > 0 && newName != ctx.SelectedSubset.Name)
-            {
+            bool nameChanged = newName.Length > 0 && newName != ctx.SelectedSubset.Name;
+            if (nameChanged)
                 SheetSetWriter.RenameSubset(ctx.SelectedSubset, newName);
-                ctx.IsDirty = true;
-                _vm.MarkDirty();
+
+            SheetSetWriter.UpdateSubsetInfo(ctx.SelectedSubset, SubsetDescBox?.Text.Trim());
+
+            ctx.IsDirty = true;
+            _vm.MarkDirty();
+            if (nameChanged)
                 RebuildTree();
-                _vm.StatusText = $"Subset hernoemd naar '{newName}'";
-            }
+            _vm.StatusText = $"Subset '{ctx.SelectedSubset.Name}' bijgewerkt";
             return;
         }
 
@@ -295,10 +449,23 @@ public partial class MainWindow : Window
             _vm.IsDirty = false;
             FileDropdownButton.Content = _vm.FileTitle;
             _vm.StatusText = $"Opgeslagen: {Path.GetFileName(ctx.FilePath)}";
+
+            if (IsAutoCADRunning())
+            {
+                MessageBox.Show(
+                    $"'{Path.GetFileName(ctx.FilePath)}' is opgeslagen.\n\n" +
+                    "AutoCAD staat aan en heeft deze Sheet Set mogelijk in het geheugen.\n" +
+                    "Herlaad de Sheet Set in AutoCAD om overschrijven te voorkomen:\n\n" +
+                    "→ Rechtermuisknop op de Sheet Set → 'Sheet Set sluiten'\n" +
+                    "→ Daarna opnieuw openen",
+                    "Herlaad in AutoCAD",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Fout bij opslaan:\n{ex.Message}", "Fout", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Fout bij opslaan:\n{ex.Message}", "Opslaan mislukt", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -700,9 +867,40 @@ public partial class MainWindow : Window
         bool isSheet     = _contextTargetItem?.Tag is SheetNode;
         bool isAddTarget = isSubset || isSheet || _contextTargetItem?.Tag is DocumentContext;
 
+        var ctx = _vm.ActiveDocument;
+        var selectedCount = ctx?.SelectedSheets.Count ?? 0;
+
         CtxNewSubset.IsEnabled  = isAddTarget;
+        CtxNewSheet.IsEnabled   = isAddTarget;
         CtxRenameItem.IsEnabled = isSubset || isSheet;
-        CtxDeleteItem.IsEnabled = isSubset;
+        CtxDeleteItem.IsEnabled = isSubset || isSheet;
+
+        // Enable import when at least one sheet is selected (either the right-clicked one or the multi-selection)
+        CtxImportCsv.IsEnabled  = ctx != null && (selectedCount > 0 || isSheet);
+        CtxImportCsv.Header     = selectedCount > 1
+            ? $"CSV/TSV importeren op {selectedCount} geselecteerde sheets…"
+            : "CSV/TSV importeren op selectie…";
+    }
+
+    private void CtxImportCsv_Click(object sender, RoutedEventArgs e)
+    {
+        var ctx = _vm.ActiveDocument;
+        if (ctx == null) return;
+
+        // If the right-clicked item is a sheet that isn't part of the multi-selection,
+        // treat it as the sole target so the user gets what they right-clicked on.
+        if (_contextTargetItem?.Tag is SheetNode clickedSheet &&
+            !ctx.SelectedSheets.Any(s => s.Info == clickedSheet.Info))
+        {
+            // Temporarily scope to just this sheet by using the wizard with a one-item list
+            var tempCtx = new DocumentContext(ctx.Document) { IsDirty = ctx.IsDirty };
+            tempCtx.SelectedSheets.Add(clickedSheet);
+            OpenImportWizardForContext(tempCtx);
+            if (tempCtx.IsDirty) ctx.IsDirty = true;
+            return;
+        }
+
+        OpenImportWizardForContext(ctx);
     }
 
     private TreeViewItem? _contextTargetItem;
@@ -756,21 +954,64 @@ public partial class MainWindow : Window
         }
     }
 
-    private void CtxDeleteItem_Click(object sender, RoutedEventArgs e)
+    private void CtxNewSheet_Click(object sender, RoutedEventArgs e)
     {
         var ctx = _vm.ActiveDocument;
-        if (ctx == null || _contextTargetItem?.Tag is not SubsetNode subset) return;
+        if (ctx == null) return;
 
-        var r = MessageBox.Show($"Subset '{subset.Name}' verwijderen inclusief alle inhoud?",
-            "Verwijderen", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (r != MessageBoxResult.Yes) return;
+        string? number = PromptInput("Nieuw blad", "Bladnummer:");
+        if (string.IsNullOrWhiteSpace(number)) return;
+        string? title = PromptInput("Nieuw blad", "Bladtitel:");
+        if (title == null) return;
 
-        subset.Info.Element?.Remove();
-        RemoveSubsetFromModel(ctx.Document, subset);
+        SubsetNode? parentSubset = _contextTargetItem?.Tag switch
+        {
+            SubsetNode s    => s,
+            SheetNode sheet => FindParentSubset(ctx.Document, sheet),
+            _               => null
+        };
+
+        SheetSetWriter.AddSheet(ctx.Document, parentSubset, number, title);
         ctx.IsDirty = true;
         _vm.MarkDirty();
         RebuildTree();
-        _vm.StatusText = $"Subset '{subset.Name}' verwijderd";
+        _vm.StatusText = $"Blad '{number} – {title}' toegevoegd";
+    }
+
+    private void CtxDeleteItem_Click(object sender, RoutedEventArgs e)
+    {
+        var ctx = _vm.ActiveDocument;
+        if (ctx == null) return;
+
+        if (_contextTargetItem?.Tag is SubsetNode subset)
+        {
+            var r = MessageBox.Show($"Subset '{subset.Name}' verwijderen inclusief alle inhoud?",
+                "Verwijderen", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (r != MessageBoxResult.Yes) return;
+
+            subset.Info.Element?.Remove();
+            RemoveSubsetFromModel(ctx.Document, subset);
+            ctx.IsDirty = true;
+            _vm.MarkDirty();
+            RebuildTree();
+            ShowNoSelection(ctx);
+            _vm.StatusText = $"Subset '{subset.Name}' verwijderd";
+        }
+        else if (_contextTargetItem?.Tag is SheetNode sheet)
+        {
+            var label = $"{sheet.Info.Number} – {sheet.Info.Title}".Trim(' ', '–', ' ');
+            var r = MessageBox.Show($"Blad '{label}' verwijderen?",
+                "Verwijderen", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (r != MessageBoxResult.Yes) return;
+
+            SheetSetWriter.DeleteSheet(ctx.Document, sheet);
+            ctx.SelectedSheets.Remove(sheet);
+            ctx.IsDirty = true;
+            _vm.MarkDirty();
+            RebuildTree();
+            ShowNoSelection(ctx);
+            _vm.StatusText = $"Blad '{label}' verwijderd";
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -787,6 +1028,7 @@ public partial class MainWindow : Window
         OverigeVeldenExpander.Visibility = Visibility.Collapsed;
         CustomPropsExpander.Visibility   = Visibility.Collapsed;
         HideSheetSetPanel();
+        HideSheetSetFieldsBorder();
     }
 
     private void ShowSheetSetProperties(DocumentContext ctx)
@@ -796,7 +1038,8 @@ public partial class MainWindow : Window
         HoofdveldenPanel.Visibility      = Visibility.Collapsed;
         OverigeVeldenExpander.Visibility = Visibility.Collapsed;
         CustomPropsExpander.Visibility   = Visibility.Collapsed;
-        ShowSheetSetPanel(ctx.Document.Info.Name ?? string.Empty);
+        HideSheetSetFieldsBorder();
+        ShowSheetSetPanel(ctx);
     }
 
     private void ShowSubsetProperties(SubsetNode subset)
@@ -807,11 +1050,14 @@ public partial class MainWindow : Window
         OverigeVeldenExpander.Visibility = Visibility.Collapsed;
         CustomPropsExpander.Visibility   = Visibility.Collapsed;
         HideSheetSetPanel();
+        HideSheetSetFieldsBorder();
         SubsetNameBox.Text = subset.Name;
+        SubsetDescBox.Text = subset.Info.Description ?? string.Empty;
     }
 
     private void ShowSheetProperties(List<SheetNode> sheets)
     {
+        HideSheetSetFieldsBorder();
         if (sheets.Count == 0) { ShowNoSelection(_vm.ActiveDocument); return; }
 
         NoSelectionLabel.Visibility      = Visibility.Collapsed;
@@ -831,8 +1077,12 @@ public partial class MainWindow : Window
             TbRevDate.Text      = info.RevisionDate   ?? string.Empty;
             TbIssuePurpose.Text = info.IssuePurpose   ?? string.Empty;
             TbCategory.Text     = info.Category       ?? string.Empty;
+            TbLayout.Text       = info.LayoutName     ?? string.Empty;
+            TbDwgFile.Text      = info.RelativeDwgFileName ?? info.DwgFileName ?? string.Empty;
             CbDoNotPlot.IsChecked = info.DoNotPlot;
+            var sheetOnlyKeys = GetSheetOnlyKeys();
             CustomPropsPanel.ItemsSource = info.CustomProperties
+                .Where(kv => sheetOnlyKeys.Contains(kv.Key))
                 .Select(kv => new CustomPropRow(kv.Key, kv.Value)).ToList();
         }
         else
@@ -844,13 +1094,21 @@ public partial class MainWindow : Window
             TbRevDate.Text      = Mixed(sheets, i => i.RevisionDate);
             TbIssuePurpose.Text = Mixed(sheets, i => i.IssuePurpose);
             TbCategory.Text     = Mixed(sheets, i => i.Category);
+            TbLayout.Text       = string.Empty;
+            TbDwgFile.Text      = string.Empty;
             CbDoNotPlot.IsChecked = MixedBool(sheets, i => i.DoNotPlot);
 
             // Show custom props common to ALL selected sheets; [gedeeld] when values differ
+            // Only show per-sheet (Flags=2) properties, not sheet-set-level (Flags=1) properties
+            var sheetOnlyKeysMulti = GetSheetOnlyKeys();
             var keysets = sheets
-                .Select(s => s.Info.CustomProperties.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase))
+                .Select(s => s.Info.CustomProperties.Keys
+                    .Where(k => sheetOnlyKeysMulti.Contains(k))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase))
                 .ToList();
-            var commonKeys = keysets.Aggregate((a, b) => { a.IntersectWith(b); return a; });
+            var commonKeys = keysets.Count > 0
+                ? keysets.Aggregate((a, b) => { a.IntersectWith(b); return a; })
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var multiRows = commonKeys.OrderBy(k => k).Select(key =>
             {
                 var distinct = sheets
@@ -860,46 +1118,276 @@ public partial class MainWindow : Window
             }).ToList();
             CustomPropsPanel.ItemsSource = multiRows.Count > 0 ? multiRows : null;
         }
+
+        // Inject read-only sheetset Flags=1 fields above the custom props section
+        var activeDoc = _vm.ActiveDocument;
+        if (activeDoc != null)
+        {
+            var setDefs = activeDoc.Document.Info.CustomPropertyDefinitions
+                .Where(d => d.Flags == 1)
+                .ToList();
+            if (setDefs.Count > 0)
+            {
+                _sheetSetFieldsBorder = BuildSheetSetFieldsBorder(
+                    setDefs, activeDoc.Document.Info.CustomProperties);
+                int idx = PropertyStack.Children.IndexOf(CustomPropsExpander);
+                if (idx >= 0)
+                    PropertyStack.Children.Insert(idx, _sheetSetFieldsBorder);
+            }
+        }
     }
 
     // Dynamic SheetSet panel (injected into ScrollViewer StackPanel)
     private Border? _sheetSetPanelBorder;
+    private TextBox? SheetSetDescBox;
+    private TextBox? SheetSetProjectNameBox;
+    private TextBox? SheetSetProjectNumberBox;
+    private TextBox? SheetSetProjectPhaseBox;
+    private TextBox? SheetSetProjectMilestoneBox;
+    private ItemsControl? _sheetSetPropsCtrl;
+    private ItemsControl? _bladVeldenCtrl;
+    private Border?       _sheetSetFieldsBorder;
 
-    private void ShowSheetSetPanel(string currentName)
+    private void ShowSheetSetPanel(DocumentContext ctx)
     {
         HideSheetSetPanel();
-        var tb = new TextBox
-        {
-            Text = currentName,
-            Height = 24, Padding = new Thickness(3, 0, 3, 0),
-            VerticalContentAlignment = VerticalAlignment.Center
-        };
-        SheetSetNameBox = tb;
+        var info = ctx.Document.Info;
+
         var grid = new Grid { Margin = new Thickness(8) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var label = new TextBlock
-        {
-            Text = "Naam:", VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 6, 0), Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44))
-        };
-        Grid.SetColumn(label, 0); Grid.SetColumn(tb, 1);
-        grid.Children.Add(label); grid.Children.Add(tb);
 
-        var header = new GroupBox
+        int rowIndex = 0;
+        TextBox AddRow(string labelText, string value)
+        {
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var lbl = new TextBlock
+            {
+                Text = labelText,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 4),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44))
+            };
+            var tb = new TextBox
+            {
+                Text = value,
+                Height = 24,
+                Padding = new Thickness(3, 0, 3, 0),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            Grid.SetRow(lbl, rowIndex); Grid.SetColumn(lbl, 0);
+            Grid.SetRow(tb,  rowIndex); Grid.SetColumn(tb,  1);
+            grid.Children.Add(lbl);
+            grid.Children.Add(tb);
+            rowIndex++;
+            return tb;
+        }
+
+        SheetSetNameBox          = AddRow("Naam:",         info.Name             ?? string.Empty);
+        SheetSetDescBox          = AddRow("Omschrijving:",  info.Description      ?? string.Empty);
+        SheetSetProjectNameBox   = AddRow("Projectnaam:",   info.ProjectName      ?? string.Empty);
+        SheetSetProjectNumberBox = AddRow("Projectnummer:", info.ProjectNumber    ?? string.Empty);
+        SheetSetProjectPhaseBox  = AddRow("Projectfase:",   info.ProjectPhase     ?? string.Empty);
+        SheetSetProjectMilestoneBox = AddRow("Mijlpaal:",   info.ProjectMilestone ?? string.Empty);
+
+        var sheetSetGroupBox = new GroupBox
         {
             Header = "Sheet Set",
-            Margin = new Thickness(12, 0, 12, 10),
+            Margin = new Thickness(12, 0, 12, 6),
             BorderBrush = new SolidColorBrush(Color.FromRgb(0x21, 0x96, 0xF3)),
             BorderThickness = new Thickness(1.5),
             Padding = new Thickness(8),
             Content = grid
         };
-        _sheetSetPanelBorder = new Border { Child = header };
 
-        // Insert before NoSelectionLabel in PropertyStack
+        // ── Sheetset velden (Flags=1) ─────────────────────────────────────────
+        _sheetSetPropsCtrl = new ItemsControl
+        {
+            ItemTemplate = BuildTwoColPropRowTemplate(readOnly: false, showDelete: true),
+            Margin       = new Thickness(0)
+        };
+        var setRows = new ObservableCollection<SheetSetCustomPropRow>(
+            info.CustomPropertyDefinitions
+                .Where(d => d.Flags == 1)
+                .Select(d => new SheetSetCustomPropRow(d.Name, d.Value, 1)));
+        foreach (var row in setRows.ToList())
+        {
+            var r = row;
+            r.DeleteCommand = new SimpleCommand(() =>
+            {
+                var confirm = MessageBox.Show(
+                    $"Property \"{r.Key}\" verwijderen?",
+                    "Weet u het zeker?", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (confirm != MessageBoxResult.Yes) return;
+
+                var def = ctx.Document.Info.CustomPropertyDefinitions
+                    .FirstOrDefault(d => d.Name.Equals(r.Key, StringComparison.OrdinalIgnoreCase));
+                if (def != null) PushDeletedProp(ctx, def);
+
+                SheetSetWriter.DeleteSheetSetCustomProperty(ctx.Document, r.Key);
+                setRows.Remove(r);
+                ctx.IsDirty = true;
+                _vm.MarkDirty();
+            });
+        }
+        _sheetSetPropsCtrl.ItemsSource = setRows;
+
+        var setStack = new StackPanel();
+        setStack.Children.Add(MakeHeaderRow("Property", "Waarde"));
+        setStack.Children.Add(_sheetSetPropsCtrl);
+
+        var setExpander = new Expander
+        {
+            Header          = "Sheetset velden",
+            IsExpanded      = true,
+            Margin          = new Thickness(0, 0, 0, 4),
+            BorderBrush     = new SolidColorBrush(Color.FromRgb(0xBD, 0xBD, 0xBD)),
+            BorderThickness = new Thickness(1),
+            Padding         = new Thickness(4),
+            Content         = setStack
+        };
+
+        // ── Blad velden (Flags=2) ─────────────────────────────────────────────
+        _bladVeldenCtrl = new ItemsControl
+        {
+            ItemTemplate = BuildTwoColPropRowTemplate(readOnly: false, showDelete: true),
+            Margin       = new Thickness(0)
+        };
+        var bladRows = new ObservableCollection<SheetSetCustomPropRow>(
+            info.CustomPropertyDefinitions
+                .Where(d => d.Flags == 2)
+                .Select(d => new SheetSetCustomPropRow(d.Name, d.Value, 2)));
+        foreach (var row in bladRows.ToList())
+        {
+            var r = row;
+            r.DeleteCommand = new SimpleCommand(() =>
+            {
+                var confirm = MessageBox.Show(
+                    $"Property \"{r.Key}\" verwijderen?\nDit verwijdert ook alle bladwaarden voor dit veld.",
+                    "Weet u het zeker?", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (confirm != MessageBoxResult.Yes) return;
+
+                var def = ctx.Document.Info.CustomPropertyDefinitions
+                    .FirstOrDefault(d => d.Name.Equals(r.Key, StringComparison.OrdinalIgnoreCase));
+                if (def != null) PushDeletedProp(ctx, def);
+
+                SheetSetWriter.DeleteSheetSetCustomProperty(ctx.Document, r.Key);
+                bladRows.Remove(r);
+                ctx.IsDirty = true;
+                _vm.MarkDirty();
+            });
+        }
+        _bladVeldenCtrl.ItemsSource = bladRows;
+
+        var bladStack = new StackPanel();
+        bladStack.Children.Add(MakeHeaderRow("Property", "Standaard waarde"));
+        bladStack.Children.Add(_bladVeldenCtrl);
+
+        var bladExpander = new Expander
+        {
+            Header          = "Blad velden (standaard beginwaarden)",
+            IsExpanded      = true,
+            Margin          = new Thickness(0, 0, 0, 4),
+            BorderBrush     = new SolidColorBrush(Color.FromRgb(0xBD, 0xBD, 0xBD)),
+            BorderThickness = new Thickness(1),
+            Padding         = new Thickness(4),
+            Content         = bladStack
+        };
+
+        var addBtn = new Button
+        {
+            Content             = "+ Nieuwe property",
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Padding             = new Thickness(8, 3, 8, 3),
+            Margin              = new Thickness(4, 4, 4, 2),
+            FontSize            = 11
+        };
+        addBtn.Click += AddSheetSetCustomProp_Click;
+
+        var custStack = new StackPanel();
+        custStack.Children.Add(setExpander);
+        custStack.Children.Add(bladExpander);
+        custStack.Children.Add(addBtn);
+
+        var custExpander = new Expander
+        {
+            Header          = "Custom properties",
+            IsExpanded      = true,
+            Margin          = new Thickness(12, 0, 12, 10),
+            BorderBrush     = new SolidColorBrush(Color.FromRgb(0xBD, 0xBD, 0xBD)),
+            BorderThickness = new Thickness(1),
+            Padding         = new Thickness(4),
+            Content         = custStack
+        };
+
+        var outerStack = new StackPanel();
+        outerStack.Children.Add(sheetSetGroupBox);
+        outerStack.Children.Add(custExpander);
+
+        _sheetSetPanelBorder = new Border { Child = outerStack };
         PropertyStack.Children.Insert(0, _sheetSetPanelBorder);
         NoSelectionLabel.Visibility = Visibility.Collapsed;
+    }
+
+    private static DataTemplate BuildTwoColPropRowTemplate(bool readOnly, bool showDelete = false)
+    {
+        var extraCol   = showDelete ? "<ColumnDefinition Width=\"24\"/>" : "";
+        var deleteXaml = showDelete
+            ? """
+              <Button Grid.Column="2" Content="&#xD7;"
+                      Command="{Binding DeleteCommand}"
+                      Width="20" Height="20" Padding="0"
+                      FontSize="13" VerticalAlignment="Center"
+                      Background="Transparent" BorderThickness="0"
+                      Foreground="#E53935"/>
+              """
+            : "";
+
+        // WPF XAML compiler does not support {{ }} escaping in raw string literals — use variables instead.
+        var bindKey   = "{Binding Key}";
+        var bindValue = "{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}";
+
+        var xaml = $"""
+            <DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160"/>
+                        <ColumnDefinition Width="*"/>
+                        {extraCol}
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{bindKey}"
+                               VerticalAlignment="Center" Padding="4,3" FontSize="12" Foreground="#444"/>
+                    <TextBox   Grid.Column="1"
+                               Text="{bindValue}"
+                               IsReadOnly="__RO__"
+                               Height="22" Padding="3,0" VerticalContentAlignment="Center"
+                               Margin="0,0,0,4" BorderThickness="0,0,0,1" BorderBrush="#DDD"
+                               Background="__BG__" Foreground="__FG__"/>
+                    {deleteXaml}
+                </Grid>
+            </DataTemplate>
+            """
+            .Replace("__RO__", readOnly ? "True"    : "False")
+            .Replace("__BG__", readOnly ? "#F0F0F0" : "Transparent")
+            .Replace("__FG__", readOnly ? "#888"    : "#222");
+        return (DataTemplate)System.Windows.Markup.XamlReader.Parse(xaml);
+    }
+
+    private static Grid MakeHeaderRow(string col1, string col2)
+    {
+        var row = new Grid
+        {
+            Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF5, 0xF5)),
+            Margin     = new Thickness(0, 2, 0, 2)
+        };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var h1 = new TextBlock { Text = col1, FontWeight = FontWeights.SemiBold, Padding = new Thickness(4, 3, 4, 3), FontSize = 12 };
+        var h2 = new TextBlock { Text = col2, FontWeight = FontWeights.SemiBold, Padding = new Thickness(4, 3, 4, 3), FontSize = 12 };
+        Grid.SetColumn(h1, 0); Grid.SetColumn(h2, 1);
+        row.Children.Add(h1); row.Children.Add(h2);
+        return row;
     }
 
     private void HideSheetSetPanel()
@@ -907,9 +1395,69 @@ public partial class MainWindow : Window
         if (_sheetSetPanelBorder != null)
         {
             PropertyStack.Children.Remove(_sheetSetPanelBorder);
-            _sheetSetPanelBorder = null;
-            SheetSetNameBox = null;
+            _sheetSetPanelBorder        = null;
+            SheetSetNameBox             = null;
+            SheetSetDescBox             = null;
+            SheetSetProjectNameBox      = null;
+            SheetSetProjectNumberBox    = null;
+            SheetSetProjectPhaseBox     = null;
+            SheetSetProjectMilestoneBox = null;
+            _sheetSetPropsCtrl          = null;
+            _bladVeldenCtrl             = null;
         }
+    }
+
+    private void HideSheetSetFieldsBorder()
+    {
+        if (_sheetSetFieldsBorder != null)
+        {
+            PropertyStack.Children.Remove(_sheetSetFieldsBorder);
+            _sheetSetFieldsBorder = null;
+        }
+    }
+
+    private Border BuildSheetSetFieldsBorder(
+        List<CustomPropertyDefinition> defs, Dictionary<string, string> sheetSetValues)
+    {
+        var items = new ItemsControl { ItemTemplate = BuildTwoColPropRowTemplate(readOnly: true) };
+        items.ItemsSource = defs
+            .Select(d =>
+            {
+                sheetSetValues.TryGetValue(d.Name, out var val);
+                return new SheetSetCustomPropRow(d.Name, val ?? string.Empty, 1);
+            })
+            .ToList();
+
+        var stack = new StackPanel();
+        stack.Children.Add(MakeHeaderRow("Property", "Waarde"));
+        stack.Children.Add(items);
+
+        var expander = new Expander
+        {
+            Header          = "Sheetset velden (alleen-lezen)",
+            IsExpanded      = true,
+            Margin          = new Thickness(12, 0, 12, 6),
+            BorderBrush     = new SolidColorBrush(Color.FromRgb(0xBD, 0xBD, 0xBD)),
+            BorderThickness = new Thickness(1),
+            Padding         = new Thickness(4),
+            Content         = stack
+        };
+        return new Border { Child = expander };
+    }
+
+    // Returns the set of property names that have Flags=2 (per-sheet); falls back to all keys
+    // when no definitions are present so that existing files without definitions still work.
+    private HashSet<string> GetSheetOnlyKeys()
+    {
+        var defs = _vm.ActiveDocument?.Document.Info.CustomPropertyDefinitions;
+        if (defs == null || defs.Count == 0)
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sheetKeys = defs
+            .Where(d => d.Flags == 2)
+            .Select(d => d.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return sheetKeys.Count > 0 ? sheetKeys
+            : defs.Select(d => d.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     private void ShowSelectionForDoc(DocumentContext ctx)
@@ -921,6 +1469,49 @@ public partial class MainWindow : Window
     }
 
     private void RefreshPropertyPanel(DocumentContext ctx) => ShowSelectionForDoc(ctx);
+
+    private void AddCustomPropButton_Click(object sender, RoutedEventArgs e)
+    {
+        var ctx = _vm.ActiveDocument;
+        if (ctx == null || ctx.SelectedSheets.Count == 0) return;
+
+        string? key = PromptInput("Nieuwe custom property", "Naam van de property:");
+        if (string.IsNullOrWhiteSpace(key)) return;
+
+        var rows = CustomPropsPanel.ItemsSource?.OfType<CustomPropRow>().ToList() ?? [];
+        if (rows.Any(r => string.Equals(r.Key, key, StringComparison.OrdinalIgnoreCase)))
+        {
+            MessageBox.Show($"Property '{key}' staat al in de lijst.",
+                "Al aanwezig", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        rows.Add(new CustomPropRow(key, string.Empty));
+        CustomPropsPanel.ItemsSource = rows;
+    }
+
+    private void AddSheetSetCustomProp_Click(object sender, RoutedEventArgs e)
+    {
+        var ctx = _vm.ActiveDocument;
+        if (ctx == null) return;
+
+        var dlg = new AddCustomPropertyDialog { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+
+        var name = dlg.PropertyName;
+        var defs = ctx.Document.Info.CustomPropertyDefinitions;
+        if (defs.Any(d => string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            MessageBox.Show($"Property '{name}' bestaat al.", "Al aanwezig",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        SheetSetWriter.AddSheetSetCustomProperty(ctx.Document, name, dlg.Flags);
+        ctx.IsDirty = true;
+        _vm.MarkDirty();
+        ShowSheetSetProperties(ctx);
+    }
 
     // ═══════════════════════════════════════════════════════════
     // Build updates from editor
@@ -1099,6 +1690,9 @@ public partial class MainWindow : Window
         var dlg = new InputDialog(title, prompt, defaultValue) { Owner = this };
         return dlg.ShowDialog() == true ? dlg.Value : null;
     }
+
+    private static bool IsAutoCADRunning()
+        => System.Diagnostics.Process.GetProcessesByName("acad").Length > 0;
 }
 
 // ─── CustomPropRow ────────────────────────────────────────────────────────────
@@ -1107,4 +1701,27 @@ public sealed class CustomPropRow(string key, string value)
 {
     public string Key   { get; } = key;
     public string Value { get; set; } = value;
+}
+
+// ─── SheetSetCustomPropRow ────────────────────────────────────────────────────
+
+public sealed class SheetSetCustomPropRow(string key, string value, int flags)
+{
+    public string Key        { get; }      = key;
+    public string Value      { get; set; } = value;
+    public int    Flags      { get; }      = flags;
+    // Sheetset-veld (1): één waarde voor de hele set — hier bewerkbaar.
+    // Blad-veld (2): waarde verschilt per blad — hier read-only (standaard beginwaarde).
+    public bool   IsReadOnly => Flags != 1;
+    public string TypeLabel  => Flags == 1 ? "Set" : "Blad (standaard)";
+    public ICommand? DeleteCommand { get; set; }
+}
+
+// ─── SimpleCommand ────────────────────────────────────────────────────────────
+
+internal sealed class SimpleCommand(Action execute) : ICommand
+{
+    public event EventHandler? CanExecuteChanged { add { } remove { } }
+    public bool CanExecute(object? parameter) => true;
+    public void Execute(object? parameter) => execute();
 }
