@@ -3,37 +3,46 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:SheetSetEditor">
     <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Theme is loaded at runtime by App.xaml.cs; this is the startup placeholder -->
+                <ResourceDictionary Source="Resources/LightTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
 
-        <Style x:Key="LabelStyle" TargetType="TextBlock">
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,0,6,4"/>
-            <Setter Property="Foreground" Value="#444"/>
-        </Style>
+            <Style x:Key="LabelStyle" TargetType="TextBlock">
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Margin" Value="0,0,6,4"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            </Style>
 
-        <Style x:Key="FieldBox" TargetType="TextBox">
-            <Setter Property="Height" Value="22"/>
-            <Setter Property="Margin" Value="0,0,0,4"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="3,0"/>
-        </Style>
+            <Style x:Key="FieldBox" TargetType="TextBox">
+                <Setter Property="Height" Value="22"/>
+                <Setter Property="Margin" Value="0,0,0,4"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Padding" Value="3,0"/>
+                <Setter Property="Background" Value="{DynamicResource InputBackground}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
+            </Style>
 
-        <!-- DataTemplate for custom property rows -->
-        <DataTemplate DataType="{x:Type local:CustomPropRow}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="160"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="{Binding Key}"
-                           VerticalAlignment="Center" Padding="4,3"
-                           Foreground="#444" FontSize="12"/>
-                <TextBox Grid.Column="1"
-                         Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         Style="{StaticResource FieldBox}"
-                         BorderThickness="0,0,0,1" BorderBrush="#DDD"
-                         Background="Transparent"/>
-            </Grid>
-        </DataTemplate>
+            <!-- DataTemplate for custom property rows -->
+            <DataTemplate DataType="{x:Type local:CustomPropRow}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding Key}"
+                               VerticalAlignment="Center" Padding="4,3"
+                               Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
+                    <TextBox Grid.Column="1"
+                             Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource FieldBox}"
+                             BorderThickness="0,0,0,1" BorderBrush="{DynamicResource InputBorder}"
+                             Background="Transparent"/>
+                </Grid>
+            </DataTemplate>
 
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

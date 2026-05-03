@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
+using SheetSetEditor.Services;
 
 namespace SheetSetEditor;
 
@@ -30,6 +31,10 @@ public partial class App : Application
             return;
         }
 
+        // Apply persisted settings before the first window appears
+        LocalizationService.Instance.Language = EditorSettingsService.GetLanguage();
+        ApplyTheme(EditorSettingsService.GetDarkMode());
+
         base.OnStartup(e);
         var window = new MainWindow();
         window.Show();
@@ -42,5 +47,15 @@ public partial class App : Application
     {
         _mutex?.ReleaseMutex();
         base.OnExit(e);
+    }
+
+    public static void ApplyTheme(bool dark)
+    {
+        var dict = Application.Current.Resources.MergedDictionaries;
+        dict.Clear();
+        var uri = dark
+            ? new Uri("Resources/DarkTheme.xaml",  UriKind.Relative)
+            : new Uri("Resources/LightTheme.xaml", UriKind.Relative);
+        dict.Add(new ResourceDictionary { Source = uri });
     }
 }

@@ -478,9 +478,8 @@ public partial class MainWindow : Window
 
     private void OptionsButton_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new AutoNumberDialog { Owner = this };
-        if (dlg.ShowDialog() != true) return;
-        RunAutoNumber(dlg.StartNumber, dlg.Prefix, dlg.Suffix, dlg.Increment);
+        var dlg = new Options.OptionsWindow { Owner = this };
+        dlg.ShowDialog();
     }
 
     private void RunAutoNumber(int startNumber, string prefix, string suffix, int increment = 1)

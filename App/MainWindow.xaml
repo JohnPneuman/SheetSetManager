@@ -1,9 +1,12 @@
 <Window x:Class="SheetSetEditor.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:services="clr-namespace:SheetSetEditor.Services"
         Title="{Binding Title}" Icon="Resources/Boek.png" Height="650" Width="900"
         MinHeight="450" MinWidth="700"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBackground}"
+        Foreground="{DynamicResource TextPrimary}">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -13,8 +16,9 @@
         </Grid.RowDefinitions>
 
         <!-- ═══ File header ═══ -->
-        <Border Grid.Row="0" Background="#F5F5F5"
-                BorderBrush="#D0D0D0" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0"
+                Background="{DynamicResource HeaderBackground}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
             <DockPanel>
                 <!-- File dropdown button -->
                 <Button x:Name="FileDropdownButton"
@@ -23,26 +27,34 @@
                         HorizontalContentAlignment="Left"
                         Padding="10,6"
                         FontSize="13"
+                        Foreground="{DynamicResource TextPrimary}"
                         Click="FileDropdownButton_Click">
                 </Button>
             </DockPanel>
         </Border>
 
         <!-- ═══ AutoNumber bar ═══ -->
-        <Border Grid.Row="1" Background="White"
-                BorderBrush="#E8E8E8" BorderThickness="0,0,0,1"
+        <Border Grid.Row="1"
+                Background="{DynamicResource PanelBackground}"
+                BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="0,0,0,1"
                 Padding="10,5">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="Start number:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock Text="{Binding [StartNumber], Source={x:Static services:LocalizationService.Instance}}"
+                           VerticalAlignment="Center" Margin="0,0,6,0"
+                           Foreground="{DynamicResource TextSecondary}"/>
                 <TextBox x:Name="StartNumberBox" Width="50" Height="22"
                          VerticalContentAlignment="Center" Padding="3,0"
-                         Margin="0,0,8,0" Text="1"/>
-                <Button Content="AutoNumber" Padding="10,4" Margin="0,0,5,0"
+                         Margin="0,0,8,0" Text="1"
+                         Background="{DynamicResource InputBackground}"
+                         Foreground="{DynamicResource TextPrimary}"
+                         BorderBrush="{DynamicResource InputBorder}"/>
+                <Button Content="{Binding [AutoNumber], Source={x:Static services:LocalizationService.Instance}}"
+                        Padding="10,4" Margin="0,0,5,0"
                         Click="AutoNumberButton_Click"
                         IsEnabled="{Binding IsDocumentLoaded}"/>
-                <Button Content="Options" Padding="10,4"
-                        Click="OptionsButton_Click"
-                        IsEnabled="{Binding IsDocumentLoaded}"/>
+                <Button Content="{Binding [Options], Source={x:Static services:LocalizationService.Instance}}"
+                        Padding="10,4"
+                        Click="OptionsButton_Click"/>
             </StackPanel>
         </Border>
 
@@ -55,16 +67,19 @@
             </Grid.ColumnDefinitions>
 
             <!-- ── Left: Tree ── -->
-            <Border Grid.Column="0" BorderBrush="#D0D0D0" BorderThickness="0,0,1,0">
+            <Border Grid.Column="0"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0"
+                    Background="{DynamicResource TreeBackground}">
                 <TreeView x:Name="SheetTree" Margin="4"
                           AllowDrop="True"
+                          Background="{DynamicResource TreeBackground}"
+                          Foreground="{DynamicResource TextPrimary}"
                           PreviewMouseLeftButtonDown="SheetTree_PreviewMouseLeftButtonDown"
                           PreviewMouseMove="SheetTree_PreviewMouseMove"
                           DragOver="SheetTree_DragOver"
                           Drop="SheetTree_Drop"
                           PreviewKeyDown="SheetTree_PreviewKeyDown">
                     <TreeView.Resources>
-                        <!-- Remove the default blue highlight so our custom selection coloring is visible -->
                         <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}"
                                          Color="Transparent"/>
                         <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}"
@@ -90,10 +105,10 @@
             </Border>
 
             <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch"
-                          Background="#D0D0D0" Width="4"/>
+                          Background="{DynamicResource BorderBrush}" Width="4"/>
 
             <!-- ── Right: properties + bottom bar ── -->
-            <Grid Grid.Column="2">
+            <Grid Grid.Column="2" Background="{DynamicResource WindowBackground}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
@@ -105,13 +120,15 @@
 
                         <!-- No selection -->
                         <TextBlock x:Name="NoSelectionLabel"
-                                   Text="Geen selectie"
-                                   Foreground="#999" Margin="14,4"/>
+                                   Text="{Binding [NoSelection], Source={x:Static services:LocalizationService.Instance}}"
+                                   Foreground="{DynamicResource TextMuted}" Margin="14,4"/>
 
                         <!-- Subset properties -->
                         <GroupBox x:Name="SubsetPanel" Visibility="Collapsed"
-                                  Header="Subset" Margin="12,0,12,10"
-                                  BorderBrush="#2196F3" BorderThickness="1.5"
+                                  Header="{Binding [Subset], Source={x:Static services:LocalizationService.Instance}}"
+                                  Margin="12,0,12,10"
+                                  BorderBrush="{DynamicResource GroupBoxBorder}" BorderThickness="1.5"
+                                  Foreground="{DynamicResource TextPrimary}"
                                   Padding="8">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -122,10 +139,14 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Naam:" Style="{StaticResource LabelStyle}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Text="{Binding [SubsetName], Source={x:Static services:LocalizationService.Instance}}"
+                                           Style="{StaticResource LabelStyle}"/>
                                 <TextBox x:Name="SubsetNameBox" Grid.Row="0" Grid.Column="1"
                                          Style="{StaticResource FieldBox}"/>
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Omschrijving:" Style="{StaticResource LabelStyle}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Text="{Binding [Description], Source={x:Static services:LocalizationService.Instance}}"
+                                           Style="{StaticResource LabelStyle}"/>
                                 <TextBox x:Name="SubsetDescBox" Grid.Row="1" Grid.Column="1"
                                          Style="{StaticResource FieldBox}"/>
                             </Grid>
@@ -133,8 +154,10 @@
 
                         <!-- Hoofdvelden -->
                         <GroupBox x:Name="HoofdveldenPanel" Visibility="Collapsed"
-                                  Header="Hoofdvelden" Margin="12,0,12,10"
-                                  BorderBrush="#2196F3" BorderThickness="1.5"
+                                  Header="{Binding [MainFields], Source={x:Static services:LocalizationService.Instance}}"
+                                  Margin="12,0,12,10"
+                                  BorderBrush="{DynamicResource GroupBoxBorder}" BorderThickness="1.5"
+                                  Foreground="{DynamicResource TextPrimary}"
                                   Padding="8">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -149,30 +172,47 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Bladnummer:" Style="{StaticResource LabelStyle}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Text="{Binding [SheetNumber], Source={x:Static services:LocalizationService.Instance}}"
+                                           Style="{StaticResource LabelStyle}"/>
                                 <TextBox   Grid.Row="0" Grid.Column="1" x:Name="TbNumber"  Style="{StaticResource FieldBox}"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Titel:" Style="{StaticResource LabelStyle}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Text="{Binding [Title], Source={x:Static services:LocalizationService.Instance}}"
+                                           Style="{StaticResource LabelStyle}"/>
                                 <TextBox   Grid.Row="1" Grid.Column="1" x:Name="TbTitle"   Style="{StaticResource FieldBox}"/>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Omschrijving:" Style="{StaticResource LabelStyle}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0"
+                                           Text="{Binding [Description], Source={x:Static services:LocalizationService.Instance}}"
+                                           Style="{StaticResource LabelStyle}"/>
                                 <TextBox   Grid.Row="2" Grid.Column="1" x:Name="TbDesc"    Style="{StaticResource FieldBox}"/>
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Layout:" Style="{StaticResource LabelStyle}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0"
+                                           Text="{Binding [Layout], Source={x:Static services:LocalizationService.Instance}}"
+                                           Style="{StaticResource LabelStyle}"/>
                                 <TextBox   Grid.Row="3" Grid.Column="1" x:Name="TbLayout"  Style="{StaticResource FieldBox}"
-                                           IsReadOnly="True" Background="#F0F0F0" Foreground="#888888" BorderBrush="#DDDDDD"/>
+                                           IsReadOnly="True"
+                                           Background="{DynamicResource SubtleBackground}"
+                                           Foreground="{DynamicResource TextMuted}"
+                                           BorderBrush="{DynamicResource InputBorder}"/>
 
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Bestand:" Style="{StaticResource LabelStyle}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0"
+                                           Text="{Binding [DwgFile], Source={x:Static services:LocalizationService.Instance}}"
+                                           Style="{StaticResource LabelStyle}"/>
                                 <TextBox   Grid.Row="4" Grid.Column="1" x:Name="TbDwgFile" Style="{StaticResource FieldBox}"
-                                           IsReadOnly="True" Background="#F0F0F0" Foreground="#888888" BorderBrush="#DDDDDD"/>
+                                           IsReadOnly="True"
+                                           Background="{DynamicResource SubtleBackground}"
+                                           Foreground="{DynamicResource TextMuted}"
+                                           BorderBrush="{DynamicResource InputBorder}"/>
                             </Grid>
                         </GroupBox>
 
                         <!-- Overige standaardvelden -->
                         <Expander x:Name="OverigeVeldenExpander" Visibility="Collapsed"
-                                  Header="Overige standaardvelden"
+                                  Header="{Binding [OtherFields], Source={x:Static services:LocalizationService.Instance}}"
                                   Margin="12,0,12,10" IsExpanded="False"
-                                  BorderBrush="#90CAF9" BorderThickness="1"
+                                  BorderBrush="{DynamicResource ExpanderBorder}" BorderThickness="1"
+                                  Foreground="{DynamicResource TextPrimary}"
                                   Padding="8">
                             <Grid Margin="0,4,0,0">
                                 <Grid.ColumnDefinitions>
@@ -187,45 +227,61 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Revisienummer:"  Style="{StaticResource LabelStyle}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Text="{Binding [RevisionNumber], Source={x:Static services:LocalizationService.Instance}}"
+                                           Style="{StaticResource LabelStyle}"/>
                                 <TextBox   Grid.Row="0" Grid.Column="1" x:Name="TbRevNr"       Style="{StaticResource FieldBox}"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Revisiedatum:"   Style="{StaticResource LabelStyle}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Text="{Binding [RevisionDate], Source={x:Static services:LocalizationService.Instance}}"
+                                           Style="{StaticResource LabelStyle}"/>
                                 <TextBox   Grid.Row="1" Grid.Column="1" x:Name="TbRevDate"     Style="{StaticResource FieldBox}"/>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Uitgiftedoel:"   Style="{StaticResource LabelStyle}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0"
+                                           Text="{Binding [IssuePurpose], Source={x:Static services:LocalizationService.Instance}}"
+                                           Style="{StaticResource LabelStyle}"/>
                                 <TextBox   Grid.Row="2" Grid.Column="1" x:Name="TbIssuePurpose" Style="{StaticResource FieldBox}"/>
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Categorie:"      Style="{StaticResource LabelStyle}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0"
+                                           Text="{Binding [Category], Source={x:Static services:LocalizationService.Instance}}"
+                                           Style="{StaticResource LabelStyle}"/>
                                 <TextBox   Grid.Row="3" Grid.Column="1" x:Name="TbCategory"    Style="{StaticResource FieldBox}"/>
 
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Niet plotten:"   Style="{StaticResource LabelStyle}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0"
+                                           Text="{Binding [DoNotPlot], Source={x:Static services:LocalizationService.Instance}}"
+                                           Style="{StaticResource LabelStyle}"/>
                                 <CheckBox  Grid.Row="4" Grid.Column="1" x:Name="CbDoNotPlot"
-                                           IsThreeState="True" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                                           IsThreeState="True" VerticalAlignment="Center" Margin="0,0,0,4"
+                                           Foreground="{DynamicResource TextPrimary}"/>
                             </Grid>
                         </Expander>
 
                         <!-- Custom properties -->
                         <Expander x:Name="CustomPropsExpander" Visibility="Collapsed"
-                                  Header="Custom properties"
+                                  Header="{Binding [CustomProperties], Source={x:Static services:LocalizationService.Instance}}"
                                   Margin="12,0,12,10" IsExpanded="True"
-                                  BorderBrush="#BDBDBD" BorderThickness="1"
+                                  BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="1"
+                                  Foreground="{DynamicResource TextPrimary}"
                                   Padding="4">
                             <StackPanel>
                                 <!-- Column headers -->
-                                <Grid Background="#F5F5F5" Margin="0,2,0,2">
+                                <Grid Background="{DynamicResource PanelBackground}" Margin="0,2,0,2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="160"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Property"
-                                               FontWeight="SemiBold" Padding="4,3" FontSize="12"/>
-                                    <TextBlock Grid.Column="1" Text="Waarde"
-                                               FontWeight="SemiBold" Padding="4,3" FontSize="12"/>
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding [Property], Source={x:Static services:LocalizationService.Instance}}"
+                                               FontWeight="SemiBold" Padding="4,3" FontSize="12"
+                                               Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding [Value], Source={x:Static services:LocalizationService.Instance}}"
+                                               FontWeight="SemiBold" Padding="4,3" FontSize="12"
+                                               Foreground="{DynamicResource TextPrimary}"/>
                                 </Grid>
                                 <ItemsControl x:Name="CustomPropsPanel"/>
                                 <Button x:Name="AddCustomPropButton"
-                                        Content="+ Nieuwe property"
+                                        Content="{Binding [AddNewProperty], Source={x:Static services:LocalizationService.Instance}}"
                                         HorizontalAlignment="Left"
                                         Padding="8,3" Margin="4,4,4,2"
                                         FontSize="11"
@@ -248,21 +304,25 @@
                         <Image Source="Resources/Boek.png" Height="64" Width="64"
                                Margin="0,0,7,0" VerticalAlignment="Center"
                                RenderOptions.BitmapScalingMode="HighQuality"/>
-                        <TextBlock Text="Boek Solutions" FontSize="12" Foreground="#999"
+                        <TextBlock Text="Boek Solutions" FontSize="12"
+                                   Foreground="{DynamicResource TextMuted}"
                                    VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <!-- Buttons -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                         <Button x:Name="UndoPropDeleteButton"
-                                Content="↩ Ongedaan" Height="25" Padding="8,0"
+                                Content="{Binding [UndoDeleteBtn], Source={x:Static services:LocalizationService.Instance}}"
+                                Height="25" Padding="8,0"
                                 Margin="5,0" IsEnabled="False"
                                 Click="UndoPropDelete_Click"
                                 ToolTip="Verwijdering van laatste custom property ongedaan maken"/>
-                        <Button Content="Apply" Width="75" Height="25" Margin="5,0"
+                        <Button Content="{Binding [Apply], Source={x:Static services:LocalizationService.Instance}}"
+                                Width="75" Height="25" Margin="5,0"
                                 Click="ApplyButton_Click"
                                 IsEnabled="{Binding IsDocumentLoaded}"/>
-                        <Button Content="Save"  Width="75" Height="25" Margin="5,0,0,0"
+                        <Button Content="{Binding [Save], Source={x:Static services:LocalizationService.Instance}}"
+                                Width="75" Height="25" Margin="5,0,0,0"
                                 Click="SaveButton_Click"
                                 IsEnabled="{Binding IsDirty}"/>
                     </StackPanel>

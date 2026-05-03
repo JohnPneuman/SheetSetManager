@@ -1,0 +1,48 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Backgrounds -->
+    <SolidColorBrush x:Key="WindowBackground"        Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="PanelBackground"         Color="#252526"/>
+    <SolidColorBrush x:Key="SubtleBackground"        Color="#2D2D30"/>
+    <SolidColorBrush x:Key="HeaderBackground"        Color="#2D2D30"/>
+    <SolidColorBrush x:Key="InputBackground"         Color="#3C3C3C"/>
+    <SolidColorBrush x:Key="TreeBackground"          Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="AltRowBackground"        Color="#252526"/>
+    <SolidColorBrush x:Key="SelectedBackground"      Color="#264F78"/>
+    <SolidColorBrush x:Key="HoverBackground"         Color="#2D2D30"/>
+
+    <!-- Borders -->
+    <SolidColorBrush x:Key="BorderBrush"             Color="#3C3C3C"/>
+    <SolidColorBrush x:Key="SubtleBorder"            Color="#3C3C3C"/>
+    <SolidColorBrush x:Key="InputBorder"             Color="#555555"/>
+    <SolidColorBrush x:Key="SeparatorBrush"          Color="#555555"/>
+
+    <!-- Text -->
+    <SolidColorBrush x:Key="TextPrimary"             Color="#DCDCDC"/>
+    <SolidColorBrush x:Key="TextSecondary"           Color="#CCCCCC"/>
+    <SolidColorBrush x:Key="TextMuted"               Color="#888888"/>
+    <SolidColorBrush x:Key="TextDisabled"            Color="#666666"/>
+    <SolidColorBrush x:Key="TextInverted"            Color="#1E1E1E"/>
+
+    <!-- Accent -->
+    <SolidColorBrush x:Key="AccentBrush"             Color="#4FC3F7"/>
+    <SolidColorBrush x:Key="AccentLight"             Color="#1B4F6A"/>
+    <SolidColorBrush x:Key="AccentBorder"            Color="#4FC3F7"/>
+    <SolidColorBrush x:Key="SelectedBorder"          Color="#4FC3F7"/>
+
+    <!-- Status -->
+    <SolidColorBrush x:Key="ErrorBrush"              Color="#EF5350"/>
+    <SolidColorBrush x:Key="SuccessBrush"            Color="#66BB6A"/>
+    <SolidColorBrush x:Key="WarningBrush"            Color="#FFA726"/>
+
+    <!-- GroupBox / Expander -->
+    <SolidColorBrush x:Key="GroupBoxBorder"          Color="#4FC3F7"/>
+    <SolidColorBrush x:Key="ExpanderBorder"          Color="#4FC3F7"/>
+
+    <!-- Button -->
+    <SolidColorBrush x:Key="ButtonBackground"        Color="#3C3C3C"/>
+    <SolidColorBrush x:Key="ButtonForeground"        Color="#DCDCDC"/>
+    <SolidColorBrush x:Key="ButtonBorder"            Color="#555555"/>
+
+</ResourceDictionary>
