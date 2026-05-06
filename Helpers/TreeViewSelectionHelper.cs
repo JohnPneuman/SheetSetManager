@@ -83,7 +83,9 @@ namespace BoekSolutions.SheetSetEditor.Helpers
                 if (item.Tag is IAcSmObjectId id)
                 {
                     bool selected = _selection.Contains(id);
-                    item.Background = selected ? Brushes.LightBlue : Brushes.Transparent;
+                    var selBrush = (tree as FrameworkElement)?.TryFindResource("AccentLight") as Brush
+                        ?? new SolidColorBrush(Color.FromRgb(0x1B, 0x4F, 0x6A));
+                    item.Background = selected ? selBrush : Brushes.Transparent;
                     item.FontWeight = selected ? FontWeights.Bold : FontWeights.Normal;
                 }
             }

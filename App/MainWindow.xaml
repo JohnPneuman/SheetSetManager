@@ -82,10 +82,11 @@
                     <TreeView.Resources>
                         <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}"
                                          Color="Transparent"/>
-                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}"
-                                         Color="Black"/>
                         <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}"
                                          Color="Transparent"/>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                        </Style>
                     </TreeView.Resources>
                     <TreeView.ContextMenu>
                         <ContextMenu x:Name="TreeContextMenu" Opened="TreeContextMenu_Opened">

@@ -45,4 +45,8 @@
     <SolidColorBrush x:Key="ButtonForeground"        Color="#DCDCDC"/>
     <SolidColorBrush x:Key="ButtonBorder"            Color="#555555"/>
 
+    <!-- WPF system color overrides: fixes TextBox IsReadOnly background (default = near-white Windows control color) -->
+    <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}"     Color="#2D2D30"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#AAAAAA"/>
+
 </ResourceDictionary>

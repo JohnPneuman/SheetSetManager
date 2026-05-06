@@ -648,6 +648,13 @@ public partial class ImportWizardWindow : Window
 
         foreach (var row in _mappings.ToList())
         {
+            // Empty source line (e.g. blank line in vertical file) — never map
+            if (string.IsNullOrWhiteSpace(row.SourceSample))
+            {
+                row.TargetProperty = string.Empty;
+                continue;
+            }
+
             // Plain mapping (no SplitPart transform) → update target + validation
             var plain = profile.FieldMappings.FirstOrDefault(m =>
                 m.SourceColumn.Equals(row.SourceField, StringComparison.OrdinalIgnoreCase) &&

@@ -551,6 +551,7 @@ public partial class MainWindow : Window
             Tag = subset, IsExpanded = true,
             Header = subset.Name, FontWeight = FontWeights.SemiBold
         };
+        item.SetResourceReference(Control.ForegroundProperty, "TextPrimary");
         foreach (var sub in subset.Subsets)  item.Items.Add(BuildSubsetItem(sub));
         foreach (var sheet in subset.Sheets) item.Items.Add(BuildSheetItem(sheet));
         return item;
@@ -561,7 +562,9 @@ public partial class MainWindow : Window
         var label = (string.IsNullOrWhiteSpace(sheet.Number) && string.IsNullOrWhiteSpace(sheet.Title))
             ? "(zonder naam)"
             : $"{sheet.Number} – {sheet.Title}".Trim(' ', '–', ' ');
-        return new TreeViewItem { Tag = sheet, Header = label };
+        var item = new TreeViewItem { Tag = sheet, Header = label };
+        item.SetResourceReference(Control.ForegroundProperty, "TextPrimary");
+        return item;
     }
 
     private void RestoreHighlights()
@@ -573,8 +576,10 @@ public partial class MainWindow : Window
                     || item.Tag is SubsetNode sub && sub == ctx?.SelectedSubset
                     || item.Tag is DocumentContext dc && dc == ctx && ctx?.SelectedRoot == ctx?.Document;
 
+            var selBrush = TryFindResource("AccentLight") as Brush
+                ?? new SolidColorBrush(Color.FromRgb(0x1B, 0x4F, 0x6A));
             item.Background = sel
-                ? new SolidColorBrush(Color.FromArgb(0xFF, 0xBB, 0xDE, 0xF8))
+                ? selBrush
                 : item.Tag is DocumentContext activeCtx && activeCtx == _vm.ActiveDocument
                     ? new SolidColorBrush(Color.FromArgb(25, 0x21, 0x96, 0xF3))
                     : Brushes.Transparent;
@@ -1356,20 +1361,24 @@ public partial class MainWindow : Window
                         {extraCol}
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="{bindKey}"
-                               VerticalAlignment="Center" Padding="4,3" FontSize="12" Foreground="#444"/>
+                               VerticalAlignment="Center" Padding="4,3" FontSize="12"
+                               Foreground="__LABEL_FG__"/>
                     <TextBox   Grid.Column="1"
                                Text="{bindValue}"
                                IsReadOnly="__RO__"
                                Height="22" Padding="3,0" VerticalContentAlignment="Center"
-                               Margin="0,0,0,4" BorderThickness="0,0,0,1" BorderBrush="#DDD"
+                               Margin="0,0,0,4" BorderThickness="0,0,0,1"
+                               BorderBrush="__BORDER__"
                                Background="__BG__" Foreground="__FG__"/>
                     {deleteXaml}
                 </Grid>
             </DataTemplate>
             """
-            .Replace("__RO__", readOnly ? "True"    : "False")
-            .Replace("__BG__", readOnly ? "#F0F0F0" : "Transparent")
-            .Replace("__FG__", readOnly ? "#888"    : "#222");
+            .Replace("__RO__",       readOnly ? "True"  : "False")
+            .Replace("__LABEL_FG__", "{DynamicResource TextSecondary}")
+            .Replace("__BG__",       readOnly ? "{DynamicResource SubtleBackground}" : "Transparent")
+            .Replace("__FG__",       readOnly ? "{DynamicResource TextMuted}"        : "{DynamicResource TextPrimary}")
+            .Replace("__BORDER__",   "{DynamicResource InputBorder}");
         return (DataTemplate)System.Windows.Markup.XamlReader.Parse(xaml);
     }
 
