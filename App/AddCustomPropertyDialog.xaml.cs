@@ -1,4 +1,5 @@
 using System.Windows;
+using SheetSetEditor.Services;
 
 namespace SheetSetEditor;
 
@@ -18,7 +19,7 @@ public partial class AddCustomPropertyDialog : Window
         var name = NameBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
-            MessageBox.Show("Voer een naam in voor de property.", "Naam vereist",
+            MessageBox.Show(LocalizationService.T("EnterPropertyName"), LocalizationService.T("NameRequired"),
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             NameBox.Focus();
             return;

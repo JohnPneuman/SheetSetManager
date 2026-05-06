@@ -1,4 +1,5 @@
 using System.Windows;
+using SheetSetEditor.Services;
 
 namespace SheetSetEditor;
 
@@ -19,13 +20,13 @@ public partial class AutoNumberDialog : Window
     {
         if (!int.TryParse(StartBox.Text, out int start) || start < 0)
         {
-            MessageBox.Show("Voer een geldig startnummer in.", "Ongeldig invoer",
+            MessageBox.Show(LocalizationService.T("EnterValidStartNumber"), LocalizationService.T("InvalidInput"),
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
         if (!int.TryParse(IncrementBox.Text, out int inc) || inc < 1)
         {
-            MessageBox.Show("Voer een geldige stap in (≥ 1).", "Ongeldig invoer",
+            MessageBox.Show(LocalizationService.T("EnterValidStep"), LocalizationService.T("InvalidInput"),
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }

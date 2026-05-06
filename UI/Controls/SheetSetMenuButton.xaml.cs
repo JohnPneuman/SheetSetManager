@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using BoekSolutions.SheetSetEditor.Helpers;
+using SheetSetEditor.Services;
 using static BoekSolutions.SheetSetEditor.Aliases;
 
 namespace BoekSolutions.SheetSetEditor.UI.Controls
@@ -55,7 +56,7 @@ namespace BoekSolutions.SheetSetEditor.UI.Controls
 
                 var closeItem = new MenuItem
                 {
-                    Header = "Close Sheet Set"
+                    Header = LocalizationService.T("CloseSheetSet")
                 };
                 closeItem.Click += (s, ev) => OnCloseActive();
 
@@ -65,7 +66,7 @@ namespace BoekSolutions.SheetSetEditor.UI.Controls
                 menu.Items.Add(new Separator());
             }
 
-            var recentMenu = new MenuItem { Header = "Recent" };
+            var recentMenu = new MenuItem { Header = LocalizationService.T("RecentFiles") };
             foreach (var path in RecentFilesHelper.GetRecentSheetSets())
             {
                 var item = new MenuItem
@@ -80,11 +81,11 @@ namespace BoekSolutions.SheetSetEditor.UI.Controls
 
             menu.Items.Add(new MenuItem
             {
-                Header = "New Sheet Set...",
+                Header = LocalizationService.T("New"),
                 Command = new RelayCommand(() => Log.Info("[SSM] New Sheet Set clicked (nog niet geïmplementeerd)."))
             });
 
-            var openItem = new MenuItem { Header = "Open..." };
+            var openItem = new MenuItem { Header = LocalizationService.T("Open") };
             openItem.Click += (s, ev) => OnOpenDialog();
             menu.Items.Add(openItem);
 
@@ -102,8 +103,8 @@ namespace BoekSolutions.SheetSetEditor.UI.Controls
         {
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
-                Filter = "Sheet Sets (*.dst)|*.dst",
-                Title = "Open Sheet Set"
+                Filter = LocalizationService.T("SheetSetFilter"),
+                Title  = LocalizationService.T("OpenSheetSetTitle")
             };
 
             if (dlg.ShowDialog() == true)

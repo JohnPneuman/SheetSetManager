@@ -11,13 +11,16 @@ public partial class OptionsWindow : Window
 
     private static readonly (AppLanguage Lang, string Display)[] LanguageItems =
     [
-        (AppLanguage.Dutch,     "🇳🇱 Nederlands"),
-        (AppLanguage.English,   "🇬🇧 English"),
-        (AppLanguage.German,    "🇩🇪 Deutsch"),
-        (AppLanguage.French,    "🇫🇷 Français"),
-        (AppLanguage.Afrikaans, "🇿🇦 Afrikaans"),
-        (AppLanguage.Frisian,   "🏴 Frysk"),
-        (AppLanguage.Klingon,   "🖖 tlhIngan Hol"),
+        (AppLanguage.Dutch,       "🇳🇱 Nederlands"),
+        (AppLanguage.English,     "🇬🇧 English"),
+        (AppLanguage.German,      "🇩🇪 Deutsch"),
+        (AppLanguage.French,      "🇫🇷 Français"),
+        (AppLanguage.Spanish,     "🇪🇸 Español"),
+        (AppLanguage.Italian,     "🇮🇹 Italiano"),
+        (AppLanguage.Portuguese,  "🇵🇹 Português"),
+        (AppLanguage.Afrikaans,   "🇿🇦 Afrikaans"),
+        (AppLanguage.Frisian,     "🏴 Frysk"),
+        (AppLanguage.Klingon,     "🖖 tlhIngan Hol"),
     ];
 
     public OptionsWindow()

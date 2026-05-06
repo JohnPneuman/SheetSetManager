@@ -27,7 +27,7 @@ public partial class NewSheetSetWizard : Window
 
     private void BrowseFolder_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new OpenFolderDialog { Title = "Kies de opslagmap voor de nieuwe sheet set" };
+        var dlg = new OpenFolderDialog { Title = LocalizationService.T("ChooseSaveFolder") };
         if (!string.IsNullOrWhiteSpace(FolderBox.Text) && Directory.Exists(FolderBox.Text))
             dlg.InitialDirectory = FolderBox.Text;
         if (dlg.ShowDialog() == true)
@@ -38,8 +38,8 @@ public partial class NewSheetSetWizard : Window
     {
         var dlg = new OpenFileDialog
         {
-            Title  = "Kies het template bestand",
-            Filter = "Sheet Set bestanden (*.dst)|*.dst",
+            Title  = LocalizationService.T("ChooseTemplate"),
+            Filter = LocalizationService.T("SheetSetFileFilter"),
         };
         var initial = TemplateBox.Text.Trim();
         if (File.Exists(initial))
@@ -69,14 +69,14 @@ public partial class NewSheetSetWizard : Window
 
         if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
         {
-            MessageBox.Show("Kies een bestaande opslagmap.", "Opslagmap vereist",
+            MessageBox.Show(LocalizationService.T("FolderRequired"), LocalizationService.T("FolderRequiredTitle"),
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             FolderBox.Focus();
             return;
         }
         if (string.IsNullOrWhiteSpace(template) || !File.Exists(template))
         {
-            MessageBox.Show("Kies een bestaand template bestand (.dst).", "Template vereist",
+            MessageBox.Show(LocalizationService.T("TemplateRequired"), LocalizationService.T("TemplateRequiredTitle"),
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             TemplateBox.Focus();
             return;
@@ -89,7 +89,7 @@ public partial class NewSheetSetWizard : Window
         try { LoadTemplatePreview(template); }
         catch (Exception ex)
         {
-            MessageBox.Show($"Kan template niet lezen:\n{ex.Message}", "Fout",
+            MessageBox.Show($"{LocalizationService.T("ErrorReadingTemplate")}\n{ex.Message}", LocalizationService.T("Error"),
                 MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
@@ -97,8 +97,8 @@ public partial class NewSheetSetWizard : Window
         Page1Grid.Visibility = Visibility.Collapsed;
         Page2Grid.Visibility = Visibility.Visible;
         BackButton.Visibility = Visibility.Visible;
-        NextButton.Content    = "Aanmaken";
-        StepLabel.Text        = "Stap 2 van 2: Naam && Details";
+        NextButton.Content    = LocalizationService.T("CreateSheetSet");
+        StepLabel.Text        = LocalizationService.T("WizardStep2");
         _currentPage = 2;
         NameBox.Focus();
     }
@@ -108,8 +108,8 @@ public partial class NewSheetSetWizard : Window
         Page2Grid.Visibility  = Visibility.Collapsed;
         Page1Grid.Visibility  = Visibility.Visible;
         BackButton.Visibility = Visibility.Collapsed;
-        NextButton.Content    = "Volgende >";
-        StepLabel.Text        = "Stap 1 van 2: Opslaan & Template";
+        NextButton.Content    = LocalizationService.T("Next");
+        StepLabel.Text        = LocalizationService.T("WizardStep1");
         _currentPage = 1;
     }
 
@@ -140,7 +140,7 @@ public partial class NewSheetSetWizard : Window
         var name = NameBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
-            MessageBox.Show("Voer een naam in voor de sheet set.", "Naam vereist",
+            MessageBox.Show(LocalizationService.T("SheetSetNameRequired"), LocalizationService.T("NameRequired"),
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             NameBox.Focus();
             return;
@@ -157,8 +157,8 @@ public partial class NewSheetSetWizard : Window
         if (File.Exists(OutputPath))
         {
             var r = MessageBox.Show(
-                $"'{Path.GetFileName(OutputPath)}' bestaat al.\nOverschrijven?",
-                "Bestand bestaat al", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                string.Format(LocalizationService.T("FileExistsConfirm"), Path.GetFileName(OutputPath)),
+                LocalizationService.T("FileExistsTitle"), MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (r != MessageBoxResult.Yes) return;
         }
 
@@ -182,7 +182,7 @@ public partial class NewSheetSetWizard : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Aanmaken mislukt:\n{ex.Message}", "Fout",
+            MessageBox.Show($"{LocalizationService.T("ErrorCreating")}\n{ex.Message}", LocalizationService.T("Error"),
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

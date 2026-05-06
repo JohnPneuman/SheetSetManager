@@ -9,6 +9,7 @@ using BoekSolutions.SheetSetEditor.Models;
 using BoekSolutions.SheetSetEditor.ViewModels;
 using BoekSolutions.SheetSetEditor.UI.Controls;
 using System.ComponentModel;
+using SheetSetEditor.Services;
 
 namespace BoekSolutions.SheetSetEditor.UI
 {
@@ -40,7 +41,7 @@ namespace BoekSolutions.SheetSetEditor.UI
                 SheetTreeControl,
                 options
             );
-                MessageBox.Show("AutoNumber complete.");
+                MessageBox.Show(LocalizationService.T("AutoNumberComplete"));
             };
         }
         public void OnApplyClicked(object sender, RoutedEventArgs e)
@@ -120,7 +121,7 @@ namespace BoekSolutions.SheetSetEditor.UI
                 // AutoCAD had al de lock → alleen saven, NIET unlocken
                 Log.Info("[SSM] Save zonder unlock (AutoCAD heeft lock).");
                 DatabaseHelper.SaveWithoutUnlock(_database);
-                MessageBox.Show("Opgeslagen. Let op: het bestand was al open in AutoCAD — herlaad de Sheet Set in AutoCAD om de wijzigingen te zien.", "Opgeslagen", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(LocalizationService.T("SavedAlreadyOpenNote"), LocalizationService.T("SavedTitle"), MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 

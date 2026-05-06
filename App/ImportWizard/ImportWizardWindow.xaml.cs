@@ -12,6 +12,7 @@ using SheetSet.Core.Import.Parsing;
 using SheetSet.Core.Import.Profiles;
 using SheetSet.Core.Models;
 using SheetSetEditor.Models;
+using SheetSetEditor.Services;
 
 namespace SheetSetEditor.ImportWizard;
 
@@ -65,10 +66,10 @@ public partial class ImportWizardWindow : Window
 
         StepLabel.Text = page switch
         {
-            1 => $"Stap 1 van {TotalPages}: Bestand(en) kiezen",
-            2 => $"Stap 2 van {TotalPages}: Koppelen",
-            3 => $"Stap 3 van {TotalPages}: Voorbeeld",
-            4 => $"Stap 4 van {TotalPages}: Resultaat",
+            1 => LocalizationService.T("Step1"),
+            2 => LocalizationService.T("Step2"),
+            3 => LocalizationService.T("Step3"),
+            4 => LocalizationService.T("Step4"),
             _ => string.Empty
         };
 
@@ -76,11 +77,11 @@ public partial class ImportWizardWindow : Window
         NextButton.IsEnabled = page < TotalPages;
         NextButton.Content   = page switch
         {
-            2 => "Voorbeeld →",
-            3 => "Importeren ✓",
-            _ => "Volgende →"
+            2 => LocalizationService.T("NextPreview"),
+            3 => LocalizationService.T("NextImport"),
+            _ => LocalizationService.T("Next")
         };
-        CancelButton.Content = page == TotalPages ? "Sluiten" : "Annuleren";
+        CancelButton.Content = page == TotalPages ? LocalizationService.T("Close") : LocalizationService.T("Cancel");
     }
 
     private void Back_Click(object sender, RoutedEventArgs e)   => GoToPage(_page - 1);
@@ -99,8 +100,8 @@ public partial class ImportWizardWindow : Window
     {
         var dlg = new OpenFileDialog
         {
-            Title  = "Kies importbestand",
-            Filter = "Importbestanden (*.csv;*.tsv;*.txt)|*.csv;*.tsv;*.txt|Alle bestanden (*.*)|*.*"
+            Title  = LocalizationService.T("ChooseImportFile"),
+            Filter = LocalizationService.T("ImportFileFilter")
         };
         if (dlg.ShowDialog() != true) return;
 
@@ -116,7 +117,7 @@ public partial class ImportWizardWindow : Window
             _preview = _source.GetPreview(filePath);
 
             var h         = _preview.DetectedHints;
-            var layout    = h.Layout == FieldLayout.Vertical ? "Verticaal" : "Horizontaal (CSV/TSV)";
+            var layout    = h.Layout == FieldLayout.Vertical ? LocalizationService.T("LayoutVertical") : LocalizationService.T("LayoutHorizontal");
             var delimiter = h.Delimiter.HasValue ? $"'{h.Delimiter}'" : "geen";
             FormatLabel.Text = $"Layout: {layout}  |  Scheidingsteken: {delimiter}  |  Encoding: {h.Encoding}  |  Kolommen/velden: {_preview.Headers.Count}";
 
@@ -137,7 +138,7 @@ public partial class ImportWizardWindow : Window
         {
             FormatPanel.Visibility  = Visibility.Visible;
             PreviewPanel.Visibility = Visibility.Collapsed;
-            FormatLabel.Text        = $"Fout bij lezen: {ex.Message}";
+            FormatLabel.Text        = string.Format(LocalizationService.T("ErrorReadingFile"), ex.Message);
             NextButton.IsEnabled    = false;
         }
     }
@@ -151,7 +152,7 @@ public partial class ImportWizardWindow : Window
         if (item == null) return;
 
         ProfileCombo.SelectedItem       = item;
-        ProfileHintLabel.Text           = $"Profiel \"{match.Name}\" automatisch herkend op basis van bestandsnaam.";
+        ProfileHintLabel.Text           = string.Format(LocalizationService.T("ProfileAutoDetected"), match.Name);
         ProfileHintLabel.Visibility     = Visibility.Visible;
         ApplyProfile(match);
     }
@@ -163,8 +164,8 @@ public partial class ImportWizardWindow : Window
 
         if (_preview.DetectedHints.Layout == FieldLayout.Vertical)
         {
-            PreviewGrid.Columns.Add(new DataGridTextColumn { Header = "Veld",   Binding = new Binding("Key"),   Width = new DataGridLength(100) });
-            PreviewGrid.Columns.Add(new DataGridTextColumn { Header = "Waarde", Binding = new Binding("Value"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            PreviewGrid.Columns.Add(new DataGridTextColumn { Header = LocalizationService.T("SourceField"), Binding = new Binding("Key"),   Width = new DataGridLength(100) });
+            PreviewGrid.Columns.Add(new DataGridTextColumn { Header = LocalizationService.T("Value"),       Binding = new Binding("Value"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             var row = _preview.SampleRows.FirstOrDefault();
             PreviewGrid.ItemsSource = row?.Fields.Select(kv => new KeyValuePair<string, string>(kv.Key, kv.Value)).ToList();
             return;
@@ -223,8 +224,8 @@ public partial class ImportWizardWindow : Window
             if (!string.IsNullOrEmpty(match)) { row.TargetProperty = match; matched++; }
         }
         AutoMapLabel.Text = matched > 0
-            ? $"{matched} koppeling(en) automatisch ingevuld."
-            : "Geen nieuwe koppelingen gevonden.";
+            ? string.Format(LocalizationService.T("AutoMappedCount"), matched)
+            : LocalizationService.T("NoMappingsFound");
     }
 
     // ── Auto-match met fuzzy fallback ─────────────────────────────────────────
@@ -332,7 +333,7 @@ public partial class ImportWizardWindow : Window
 
         var dlg = new Window
         {
-            Title         = $"Validatie — veld '{field}'",
+            Title         = string.Format(LocalizationService.T("ValidationDialogTitle"), field),
             SizeToContent = SizeToContent.Height,
             Width         = 380,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -359,12 +360,12 @@ public partial class ImportWizardWindow : Window
             grid.Children.Add(tb);
         }
 
-        Lbl("Verplicht:", 0);
+        Lbl(LocalizationService.T("Required"), 0);
         var reqCheck = new CheckBox { IsChecked = row.IsRequired, Margin = new Thickness(0, 0, 0, 6), VerticalAlignment = VerticalAlignment.Center };
         Grid.SetRow(reqCheck, 0); Grid.SetColumn(reqCheck, 1);
         grid.Children.Add(reqCheck);
 
-        Lbl("Max. lengte:", 1);
+        Lbl(LocalizationService.T("MaxLength"), 1);
         var maxBox = new TextBox
         {
             Text = row.ValidationMaxLength?.ToString() ?? string.Empty,
@@ -373,7 +374,7 @@ public partial class ImportWizardWindow : Window
         Grid.SetRow(maxBox, 1); Grid.SetColumn(maxBox, 1);
         grid.Children.Add(maxBox);
 
-        Lbl("Regex patroon:", 2);
+        Lbl(LocalizationService.T("RegexPattern"), 2);
         var patBox = new TextBox
         {
             Text = row.ValidationPattern, Height = 26,
@@ -404,7 +405,7 @@ public partial class ImportWizardWindow : Window
     private void UpdateSheetSelectionLabel()
     {
         var count = _preSelectedSheets.Count;
-        SelectedSheetsLabel.Text      = $"Geselecteerde sheets ({count})";
+        SelectedSheetsLabel.Text      = string.Format(LocalizationService.T("SelectedSheetsCount"), count);
         SelectedSheetsRadio.IsEnabled = count > 0;
         if (count == 0) AllSheetsRadio.IsChecked = true;
     }
@@ -422,7 +423,7 @@ public partial class ImportWizardWindow : Window
     {
         var dlg = new Window
         {
-            Title         = "Selecteer sheets",
+            Title         = LocalizationService.T("SelectSheets"),
             Width         = 440, MaxHeight = 620,
             SizeToContent = SizeToContent.Height,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -437,7 +438,7 @@ public partial class ImportWizardWindow : Window
         outer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         outer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var hdr = new TextBlock { Text = "Vink de sheets aan waarop de import wordt toegepast:", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) };
+        var hdr = new TextBlock { Text = LocalizationService.T("SheetsImportHint"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) };
         Grid.SetRow(hdr, 0); outer.Children.Add(hdr);
 
         // Build pick-node tree
@@ -453,8 +454,8 @@ public partial class ImportWizardWindow : Window
 
         // Select-all / deselect-all
         var selRow   = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 10) };
-        var selAll   = new Button { Content = "Alles selecteren",   Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 6, 0), FontSize = 11 };
-        var deselAll = new Button { Content = "Alles deselecteren", Height = 24, Padding = new Thickness(8, 0, 8, 0), FontSize = 11 };
+        var selAll   = new Button { Content = LocalizationService.T("SelectAll"),   Height = 24, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 6, 0), FontSize = 11 };
+        var deselAll = new Button { Content = LocalizationService.T("DeselectAll"), Height = 24, Padding = new Thickness(8, 0, 8, 0), FontSize = 11 };
         selAll  .Click += (_, _) => { SetAllNodes(roots, true);  };
         deselAll.Click += (_, _) => { SetAllNodes(roots, false); };
         selRow.Children.Add(selAll); selRow.Children.Add(deselAll);
@@ -638,7 +639,7 @@ public partial class ImportWizardWindow : Window
     {
         if (ProfileCombo.SelectedItem is not ImportProfile profile) return;
         ApplyProfile(profile);
-        AutoMapLabel.Text = $"Profiel '{profile.Name}' geladen.";
+        AutoMapLabel.Text = string.Format(LocalizationService.T("ProfileLoaded"), profile.Name);
     }
 
     private void ApplyProfile(ImportProfile profile)
@@ -714,14 +715,14 @@ public partial class ImportWizardWindow : Window
 
     private void SaveProfile_Click(object sender, RoutedEventArgs e)
     {
-        var name = ShowInputDialog("Profielnaam:", "Sla op als profiel");
+        var name = ShowInputDialog(LocalizationService.T("ProfileNameLabel"), LocalizationService.T("ProfileSaveAs"));
         if (string.IsNullOrWhiteSpace(name)) return;
 
         var existing = _profileRepo.FindByName(name);
         if (existing != null)
         {
-            var confirm = MessageBox.Show($"Profiel \"{name}\" bestaat al. Overschrijven?",
-                "Profiel overschrijven", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var confirm = MessageBox.Show(string.Format(LocalizationService.T("OverwriteProfileConfirm"), name),
+                LocalizationService.T("ProfileOverwriteTitle"), MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (confirm != MessageBoxResult.Yes) return;
 
             var updated = BuildProfile(name);
@@ -739,18 +740,18 @@ public partial class ImportWizardWindow : Window
         }
 
         RefreshProfileCombo();
-        AutoMapLabel.Text = $"Profiel '{name}' opgeslagen.";
+        AutoMapLabel.Text = string.Format(LocalizationService.T("ProfileSaved"), name);
     }
 
     private void DeleteProfile_Click(object sender, RoutedEventArgs e)
     {
         if (ProfileCombo.SelectedItem is not ImportProfile profile) return;
-        var confirm = MessageBox.Show($"Profiel \"{profile.Name}\" verwijderen?",
-            "Verwijder profiel", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        var confirm = MessageBox.Show(string.Format(LocalizationService.T("DeletePropertyConfirm"), profile.Name),
+            LocalizationService.T("DeleteProfileTitle"), MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (confirm != MessageBoxResult.Yes) return;
         _profileRepo.Delete(profile.Id);
         RefreshProfileCombo();
-        AutoMapLabel.Text           = $"Profiel '{profile.Name}' verwijderd.";
+        AutoMapLabel.Text           = string.Format(LocalizationService.T("ProfileDeleted"), profile.Name);
         ProfileHintLabel.Visibility = Visibility.Collapsed;
     }
 
@@ -782,9 +783,9 @@ public partial class ImportWizardWindow : Window
             var fileDesc   = Path.GetFileName(_selectedFile);
 
             DryRunSummary.Text = willChange > 0
-                ? $"{willChange} waarde(n) zullen worden bijgewerkt in {sheets.Count} sheet(s) vanuit {fileDesc}." +
-                  (unchanged > 0 ? $"  {unchanged} zijn al gelijk." : string.Empty)
-                : $"Geen wijzigingen gevonden — alle waarden zijn al up-to-date ({fileDesc}).";
+                ? string.Format(LocalizationService.T("DryRunWillChange"), willChange, sheets.Count, fileDesc) +
+                  (unchanged > 0 ? string.Format(LocalizationService.T("DryRunAlreadySame"), unchanged) : string.Empty)
+                : string.Format(LocalizationService.T("DryRunNoChanges"), fileDesc);
 
             var style   = new Style(typeof(DataGridRow));
             var trigger = new DataTrigger { Binding = new Binding("WillChange"), Value = true };
@@ -798,17 +799,17 @@ public partial class ImportWizardWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Fout bij voorbeeld:\n{ex.Message}", "Fout",
+            MessageBox.Show($"{LocalizationService.T("ErrorPreview")}\n{ex.Message}", LocalizationService.T("Error"),
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
     private void BuildDryRunGridColumns()
     {
-        DryRunGrid.Columns.Add(new DataGridTextColumn { Header = "Sheet",          Binding = new Binding("SheetLabel"), Width = new DataGridLength(180) });
-        DryRunGrid.Columns.Add(new DataGridTextColumn { Header = "Property",       Binding = new Binding("Property"),   Width = new DataGridLength(130) });
-        DryRunGrid.Columns.Add(new DataGridTextColumn { Header = "Huidige waarde", Binding = new Binding("OldValue"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-        DryRunGrid.Columns.Add(new DataGridTextColumn { Header = "Nieuwe waarde",  Binding = new Binding("NewValue"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        DryRunGrid.Columns.Add(new DataGridTextColumn { Header = "Sheet",                                       Binding = new Binding("SheetLabel"), Width = new DataGridLength(180) });
+        DryRunGrid.Columns.Add(new DataGridTextColumn { Header = LocalizationService.T("Property"),            Binding = new Binding("Property"),   Width = new DataGridLength(130) });
+        DryRunGrid.Columns.Add(new DataGridTextColumn { Header = LocalizationService.T("ColCurrentValue"),     Binding = new Binding("OldValue"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        DryRunGrid.Columns.Add(new DataGridTextColumn { Header = LocalizationService.T("ColNewValue"),         Binding = new Binding("NewValue"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
     }
 
     // ── Stap 4: importeren ────────────────────────────────────────────────────
@@ -843,15 +844,15 @@ public partial class ImportWizardWindow : Window
             _ctx.IsDirty            = true;
 
             GoToPage(4);
-            ResultSummary.Text = $"Import klaar — {totalSucceeded} rij(en) geslaagd" +
-                                 (totalFailed > 0 ? $", {totalFailed} mislukt" : "") + ".";
-            ResultList.ItemsSource = allLines.Count > 0 ? allLines : new[] { "(geen details)" };
+            ResultSummary.Text = string.Format(LocalizationService.T("ImportResultSummary"), totalSucceeded,
+                                 totalFailed > 0 ? string.Format(LocalizationService.T("ImportResultFailed"), totalFailed) : "");
+            ResultList.ItemsSource = allLines.Count > 0 ? allLines : new[] { LocalizationService.T("NoDetails") };
             BackButton.IsEnabled   = false;
             NextButton.IsEnabled   = false;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Fout tijdens import:\n{ex.Message}", "Fout",
+            MessageBox.Show($"{LocalizationService.T("ErrorImport")}\n{ex.Message}", LocalizationService.T("Error"),
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -912,7 +913,7 @@ public partial class ImportWizardWindow : Window
     {
         var dlg = new Window
         {
-            Title         = $"Splits veld '{field}'",
+            Title         = string.Format(LocalizationService.T("SplitFieldTitle"), field),
             SizeToContent = SizeToContent.Height,
             Width         = 540, MaxHeight = 600,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -928,7 +929,7 @@ public partial class ImportWizardWindow : Window
         var sepPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
         sepPanel.Children.Add(new TextBlock
         {
-            Text = "Scheidingsteken:", Width = 140, VerticalAlignment = VerticalAlignment.Center,
+            Text = LocalizationService.T("Separator"), Width = 140, VerticalAlignment = VerticalAlignment.Center,
             Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44))
         });
         var sepBox = new TextBox { Text = " / ", Width = 160, Height = 26, Padding = new Thickness(4, 2, 4, 2) };
@@ -940,7 +941,7 @@ public partial class ImportWizardWindow : Window
         hdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
         hdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });
         hdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        foreach (var (text, col) in new[] { ("Deel", 0), ("Voorbeeld", 1), ("Doel-property", 2) })
+        foreach (var (text, col) in new[] { (LocalizationService.T("ColumnPart"), 0), (LocalizationService.T("ExampleValue"), 1), (LocalizationService.T("ColumnTargetProp"), 2) })
         {
             var tb = new TextBlock { Text = text, FontWeight = FontWeights.SemiBold, FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)) };
             Grid.SetColumn(tb, col); hdr.Children.Add(tb);
@@ -968,7 +969,7 @@ public partial class ImportWizardWindow : Window
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-                var label   = new TextBlock { Text = $"↳ deel {idx + 1}", VerticalAlignment = VerticalAlignment.Center, FontStyle = FontStyles.Italic, Foreground = new SolidColorBrush(Color.FromRgb(0x19, 0x76, 0xD2)), FontSize = 12 };
+                var label   = new TextBlock { Text = string.Format(LocalizationService.T("SplitPartLabel"), idx + 1), VerticalAlignment = VerticalAlignment.Center, FontStyle = FontStyles.Italic, Foreground = new SolidColorBrush(Color.FromRgb(0x19, 0x76, 0xD2)), FontSize = 12 };
                 var preview = new TextBlock { Text = parts[idx].Trim(), VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66)), FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis };
                 var combo   = new ComboBox  { ItemsSource = withEmpty, SelectedItem = string.Empty, Height = 24, FontSize = 12, IsEditable = true };
 
